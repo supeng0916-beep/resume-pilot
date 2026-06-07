@@ -26,6 +26,8 @@ def sample_candidate_case() -> WorkflowState:
         "report": None,
         "human_decision": None,
         "human_feedback": None,
+        "human_review_required": False,
+        "human_review_status": None,
         "current_step": "initialized",
         "errors": [],
         "trace": [],

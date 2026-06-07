@@ -27,6 +27,8 @@ class WorkflowState(TypedDict, total=False):
     report: str | None
     human_decision: str | None
     human_feedback: str | None
+    human_review_required: bool
+    human_review_status: str | None
 
     current_step: str
     errors: list[str]

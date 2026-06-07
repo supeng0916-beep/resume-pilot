@@ -5,6 +5,7 @@ from langgraph.graph import END, START, StateGraph
 from core.state import WorkflowState
 from graph.routing import route_after_validation
 from nodes.document_parser import document_parser_node
+from nodes.human_review import human_review_node
 from nodes.jd_extractor import jd_extractor_node
 from nodes.matcher import matcher_node
 from nodes.orchestrator import orchestrator_node
@@ -27,6 +28,7 @@ def build_workflow():
     graph.add_node("risk_evaluator", risk_evaluator_node)
     graph.add_node("rubric_selector", rubric_selector_node)
     graph.add_node("report_writer", report_writer_node)
+    graph.add_node("human_review", human_review_node)
 
     graph.add_edge(START, "orchestrator")
     graph.add_edge("orchestrator", "document_parser")
@@ -45,6 +47,7 @@ def build_workflow():
     graph.add_edge("rubric_selector", "matcher")
     graph.add_edge("matcher", "risk_evaluator")
     graph.add_edge("risk_evaluator", "report_writer")
-    graph.add_edge("report_writer", END)
+    graph.add_edge("report_writer", "human_review")
+    graph.add_edge("human_review", END)
 
     return graph.compile()
