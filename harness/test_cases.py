@@ -31,6 +31,8 @@ def sample_candidate_case() -> WorkflowState:
         "persist_human_feedback": False,
         "feedback_memory_path": None,
         "feedback_memory_record": None,
+        "feedback_memory_records": [],
+        "feedback_memory_summaries": [],
         "current_step": "initialized",
         "errors": [],
         "trace": [],

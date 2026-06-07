@@ -78,6 +78,16 @@ def _build_questions(state: WorkflowState) -> list[str]:
     return questions
 
 
+def _build_memory_reference_lines(state: WorkflowState) -> list[str]:
+    summaries = state.get("feedback_memory_summaries", [])
+    if not summaries:
+        return ["暂无同岗位或相似 JD 的历史人工反馈。"]
+    return [
+        f"{summary}（仅作为人工复核参考，不直接参与自动评分）"
+        for summary in summaries
+    ]
+
+
 def build_report_model(state: WorkflowState) -> EvaluationReport:
     candidate = state.get("candidate_profile") or {}
     job = state.get("job_profile") or {}
@@ -132,6 +142,9 @@ def render_markdown_report(state: WorkflowState) -> str:
         "",
         "## 建议面试问题",
         *[f"- {item}" for item in report.suggested_interview_questions],
+        "",
+        "## 历史 HR 反馈参考",
+        *[f"- {item}" for item in _build_memory_reference_lines(state)],
         "",
         "## 人工复核提示",
         f"- 候选人类型判断：{candidate.get('candidate_track', 'unknown')}，置信度 {candidate.get('track_confidence', 0)}。",

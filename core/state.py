@@ -32,6 +32,8 @@ class WorkflowState(TypedDict, total=False):
     persist_human_feedback: bool
     feedback_memory_path: str | None
     feedback_memory_record: dict[str, Any] | None
+    feedback_memory_records: list[dict[str, Any]]
+    feedback_memory_summaries: list[str]
 
     current_step: str
     errors: list[str]
