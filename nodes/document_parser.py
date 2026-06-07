@@ -1,30 +1,36 @@
 from __future__ import annotations
 
-from core.schemas import DocumentMeta
+from pathlib import Path
+
+from core.document_parser import mock_parsed_resume, parse_pdf
 from core.state import WorkflowState
 from harness.trace import add_trace
 
 
 def document_parser_node(state: WorkflowState) -> WorkflowState:
-    resume_text = (
-        "候选人：张三。5 年 Python 后端开发经验，熟悉 FastAPI、PostgreSQL、Redis，"
-        "参与过 LLM 应用和数据平台项目。期望薪资 30k，当前在职，学历本科。"
+    resume_file_path = state.get("resume_file_path")
+    used_fallback = not resume_file_path or not Path(resume_file_path).exists()
+
+    parsed_document = (
+        mock_parsed_resume(resume_file_path)
+        if used_fallback
+        else parse_pdf(resume_file_path)
     )
-    document_meta = DocumentMeta(
-        file_name=state.get("resume_file_path"),
-        page_count=1,
-        parser="mock",
-        needs_ocr=False,
-        text_length=len(resume_text),
-    ).model_dump()
+
     return {
-        "resume_text": resume_text,
-        "document_meta": document_meta,
+        "resume_text": parsed_document.text,
+        "document_meta": parsed_document.meta.model_dump(),
         "current_step": "document_parser",
         "trace": add_trace(
             state,
             "document_parser",
-            "Parsed mock resume PDF into resume_text.",
-            {"text_length": len(resume_text)},
+            "Used mock resume text because PDF file was not found."
+            if used_fallback
+            else "Parsed resume PDF into resume_text.",
+            {
+                "parser": parsed_document.meta.parser,
+                "text_length": parsed_document.meta.text_length,
+                "needs_ocr": parsed_document.meta.needs_ocr,
+            },
         ),
     }
