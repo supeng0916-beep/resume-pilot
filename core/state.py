@@ -30,3 +30,6 @@ class WorkflowState(TypedDict, total=False):
     current_step: str
     errors: list[str]
     trace: list[dict[str, Any]]
+
+    force_invalid_candidate_once: bool
+    force_invalid_candidate_always: bool

@@ -38,14 +38,21 @@ def validator_node(state: WorkflowState) -> WorkflowState:
         except ValidationError as error:
             errors.extend(_format_validation_error("document_meta", error))
 
+    retry_count = state.get("retry_count", 0)
+    if errors:
+        retry_count += 1
+
     updates.update({
         "validation_errors": errors,
+        "retry_count": retry_count,
         "current_step": "validator",
         "trace": add_trace(
             state,
             "validator",
-            "Validation passed." if not errors else f"Validation failed: {len(errors)} errors.",
-            {"errors": errors},
+            "Validation passed."
+            if not errors
+            else f"Validation failed: {len(errors)} errors. Retry count is {retry_count}.",
+            {"errors": errors, "retry_count": retry_count},
         ),
     })
     return updates

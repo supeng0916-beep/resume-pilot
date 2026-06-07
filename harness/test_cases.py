@@ -29,3 +29,18 @@ def sample_candidate_case() -> WorkflowState:
         "errors": [],
         "trace": [],
     }
+
+
+def sample_retry_repair_case() -> WorkflowState:
+    state = sample_candidate_case()
+    state["request_id"] = "demo-retry-repair"
+    state["force_invalid_candidate_once"] = True
+    return state
+
+
+def sample_retry_exhaustion_case() -> WorkflowState:
+    state = sample_candidate_case()
+    state["request_id"] = "demo-retry-exhaustion"
+    state["force_invalid_candidate_always"] = True
+    state["max_retries"] = 1
+    return state

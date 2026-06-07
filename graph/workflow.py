@@ -3,6 +3,7 @@ from __future__ import annotations
 from langgraph.graph import END, START, StateGraph
 
 from core.state import WorkflowState
+from graph.routing import route_after_validation
 from nodes.document_parser import document_parser_node
 from nodes.jd_extractor import jd_extractor_node
 from nodes.matcher import matcher_node
@@ -30,7 +31,15 @@ def build_workflow():
     graph.add_edge("document_parser", "resume_extractor")
     graph.add_edge("resume_extractor", "jd_extractor")
     graph.add_edge("jd_extractor", "validator")
-    graph.add_edge("validator", "matcher")
+    graph.add_conditional_edges(
+        "validator",
+        route_after_validation,
+        {
+            "retry_resume_extractor": "resume_extractor",
+            "continue_to_matcher": "matcher",
+            "fail_to_report": "report_writer",
+        },
+    )
     graph.add_edge("matcher", "risk_evaluator")
     graph.add_edge("risk_evaluator", "report_writer")
     graph.add_edge("report_writer", END)
