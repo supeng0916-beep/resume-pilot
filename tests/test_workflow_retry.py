@@ -11,7 +11,7 @@ def test_workflow_retries_and_repairs_invalid_candidate_profile() -> None:
     assert result["retry_count"] == 1
     assert result["match_score"] >= 80
     assert result["match_breakdown"]["track"] == "experienced"
-    assert "可进入下一轮技术面试" in result["report"]
+    assert "建议进入下一轮" in result["report"]
 
     trace_summaries = [item["output_summary"] for item in result["trace"]]
     assert any("Validation failed" in summary for summary in trace_summaries)
