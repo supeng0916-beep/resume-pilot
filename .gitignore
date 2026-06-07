@@ -14,6 +14,7 @@ pytest-cache-files-*/
 .ruff_cache/
 
 models/*.pkl
+memory/review_feedback.json
 data/*.csv
 data/examples/*.pdf
 data/test_outputs/

@@ -12,6 +12,8 @@ def run_evaluation(
     request_id: str | None = None,
     human_decision: str | None = None,
     human_feedback: str | None = None,
+    persist_human_feedback: bool = False,
+    feedback_memory_path: str | None = None,
     include_quality_check: bool = False,
 ) -> dict:
     workflow = build_workflow()
@@ -27,6 +29,10 @@ def run_evaluation(
         initial_state["human_decision"] = human_decision
     if human_feedback is not None:
         initial_state["human_feedback"] = human_feedback
+    if persist_human_feedback:
+        initial_state["persist_human_feedback"] = True
+    if feedback_memory_path is not None:
+        initial_state["feedback_memory_path"] = feedback_memory_path
 
     result = workflow.invoke(initial_state)
     if include_quality_check:

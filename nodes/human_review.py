@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from core.feedback_memory import DEFAULT_FEEDBACK_MEMORY_PATH, append_feedback_record, build_feedback_record
 from core.state import WorkflowState
 from harness.trace import add_trace
 
@@ -25,9 +26,19 @@ def human_review_node(state: WorkflowState) -> WorkflowState:
         output_summary = f"Recorded human review decision: {decision}."
         errors = list(state.get("errors", []))
 
+    feedback_record = None
+    if status.startswith("reviewed_") and state.get("persist_human_feedback", False):
+        feedback_record = build_feedback_record(state)
+        append_feedback_record(
+            state.get("feedback_memory_path") or DEFAULT_FEEDBACK_MEMORY_PATH,
+            feedback_record,
+        )
+        output_summary += " Persisted human feedback memory."
+
     return {
         "human_review_required": decision is None or status == "invalid_review_decision",
         "human_review_status": status,
+        "feedback_memory_record": feedback_record,
         "errors": errors,
         "current_step": "human_review",
         "trace": add_trace(
