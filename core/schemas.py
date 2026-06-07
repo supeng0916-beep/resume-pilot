@@ -99,6 +99,10 @@ class MatchBreakdown(StrictBaseModel):
     skill_score: float = Field(ge=0, le=100)
     experience_score: float = Field(ge=0, le=100)
     matched_skills: list[str] = Field(default_factory=list)
+    track: RecruitmentTrack = "unknown"
+    rubric_weights: dict[str, float] = Field(default_factory=dict)
+    dimension_scores: dict[str, float] = Field(default_factory=dict)
+    evidence_notes: list[str] = Field(default_factory=list)
 
 
 class EvaluationReport(StrictBaseModel):

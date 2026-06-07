@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.schemas import CandidateProfile
+from core.schemas import CandidateProfile, EvidenceSpan, SkillEvidence
 from core.state import WorkflowState
 from harness.trace import add_trace
 
@@ -37,6 +37,35 @@ def resume_extractor_node(state: WorkflowState) -> WorkflowState:
         skills=["Python", "FastAPI", "PostgreSQL", "Redis", "LLM 应用"],
         expected_salary="30k CNY/month",
         current_status="在职",
+        work_experiences=["5 年 Python 后端开发经验，参与过 LLM 应用和数据平台项目。"],
+        skill_evidence=[
+            SkillEvidence(
+                skill="FastAPI",
+                evidence_strength="strong",
+                evidence=[
+                    EvidenceSpan(
+                        source="resume",
+                        section="project_experience",
+                        text="参与过 LLM 应用项目，负责 Python/FastAPI 后端接口开发。",
+                        page=1,
+                        confidence=0.85,
+                    )
+                ],
+            ),
+            SkillEvidence(
+                skill="Redis",
+                evidence_strength="medium",
+                evidence=[
+                    EvidenceSpan(
+                        source="resume",
+                        section="work_experience",
+                        text="熟悉 Redis，并在数据平台项目中参与缓存相关开发。",
+                        page=1,
+                        confidence=0.72,
+                    )
+                ],
+            ),
+        ],
     ).model_dump()
     return {
         "candidate_profile": candidate_profile,

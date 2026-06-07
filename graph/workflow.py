@@ -11,6 +11,7 @@ from nodes.orchestrator import orchestrator_node
 from nodes.report_writer import report_writer_node
 from nodes.resume_extractor import resume_extractor_node
 from nodes.risk_evaluator import risk_evaluator_node
+from nodes.rubric_selector import rubric_selector_node
 from nodes.validator import validator_node
 
 
@@ -24,6 +25,7 @@ def build_workflow():
     graph.add_node("validator", validator_node)
     graph.add_node("matcher", matcher_node)
     graph.add_node("risk_evaluator", risk_evaluator_node)
+    graph.add_node("rubric_selector", rubric_selector_node)
     graph.add_node("report_writer", report_writer_node)
 
     graph.add_edge(START, "orchestrator")
@@ -36,10 +38,11 @@ def build_workflow():
         route_after_validation,
         {
             "retry_resume_extractor": "resume_extractor",
-            "continue_to_matcher": "matcher",
+            "continue_to_matcher": "rubric_selector",
             "fail_to_report": "report_writer",
         },
     )
+    graph.add_edge("rubric_selector", "matcher")
     graph.add_edge("matcher", "risk_evaluator")
     graph.add_edge("risk_evaluator", "report_writer")
     graph.add_edge("report_writer", END)
