@@ -4,10 +4,27 @@ from graph.workflow import build_workflow
 from harness.test_cases import sample_candidate_case
 
 
-def run_demo() -> dict:
+def run_evaluation(
+    *,
+    resume_file_path: str | None = None,
+    jd_text: str | None = None,
+    request_id: str | None = None,
+) -> dict:
     workflow = build_workflow()
     initial_state = sample_candidate_case()
+
+    if resume_file_path is not None:
+        initial_state["resume_file_path"] = resume_file_path
+    if jd_text is not None:
+        initial_state["jd_text"] = jd_text
+    if request_id is not None:
+        initial_state["request_id"] = request_id
+
     return workflow.invoke(initial_state)
+
+
+def run_demo() -> dict:
+    return run_evaluation()
 
 
 def print_result(result: dict) -> None:
@@ -16,6 +33,8 @@ def print_result(result: dict) -> None:
     print(f"Current step: {result.get('current_step')}")
     print(f"Match score: {result.get('match_score')}")
     print(f"Risk score: {result.get('risk_score')}")
+    print(f"Document parser: {(result.get('document_meta') or {}).get('parser')}")
+    print(f"Needs OCR: {(result.get('document_meta') or {}).get('needs_ocr')}")
     print("\n--- Report ---")
     print(result.get("report"))
     print("\n--- Trace ---")
