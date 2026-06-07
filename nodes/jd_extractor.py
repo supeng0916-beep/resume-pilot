@@ -22,9 +22,13 @@ def _extract_skills(jd_text: str) -> list[str]:
 
 def _extract_title(jd_text: str) -> str:
     if "实习" in jd_text:
-        return "实习后端工程师"
+        return "实习数据科学工程师" if "数据" in jd_text else "实习后端工程师"
     if "校招" in jd_text or "应届" in jd_text:
+        if "数据" in jd_text:
+            return "校招数据科学工程师"
         return "校招后端工程师"
+    if "数据" in jd_text and "工程师" in jd_text:
+        return "数据科学工程师"
     if "Python" in jd_text and "后端" in jd_text:
         return "Python 后端工程师"
     return "高级 Python 后端工程师"

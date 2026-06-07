@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 from core.schemas import CandidateProfile, EvidenceSpan, SkillEvidence
-from core.skills import extract_known_skills
+from core.skills import SKILL_ALIASES, extract_known_skills
 
 
 EDUCATION_LEVELS = ["博士", "硕士", "本科", "大专", "高中"]
@@ -55,6 +55,8 @@ def _extract_current_status(text: str) -> str | None:
         return "离职"
     if "在职" in text:
         return "在职"
+    if "至今" in text and any(keyword in text for keyword in ["大学", "硕士", "本科"]):
+        return "在读"
     if "应届" in text:
         return "应届"
     return None
@@ -70,17 +72,46 @@ def _extract_work_experiences(text: str) -> list[str]:
     experiences = [
         sentence
         for sentence in sentences
-        if any(keyword in sentence for keyword in ["工作经验", "开发经验", "项目", "负责", "参与"])
+        if any(keyword in sentence for keyword in ["工作经历", "工作经验", "开发经验", "任职", "全职"])
+        and "实习" not in sentence
     ]
     return experiences[:5]
 
 
+def _extract_internships(text: str) -> list[str]:
+    sentences = _split_sentences(text)
+    return [sentence for sentence in sentences if "实习" in sentence][:5]
+
+
+def _extract_campus_projects(text: str) -> list[str]:
+    sentences = _split_sentences(text)
+    projects = [
+        sentence
+        for sentence in sentences
+        if any(keyword in sentence for keyword in ["项目经历", "项目描述", "独立开发者", "校园项目"])
+    ]
+    return projects[:5]
+
+
+def _extract_graduation_year(text: str) -> int | None:
+    if "至今" in text and "硕士" in text:
+        return None
+    years = [int(year) for year in re.findall(r"(20\d{2})[-年]", text)]
+    if not years:
+        return None
+    return max(years)
+
+
 def _snippet_for_skill(text: str, skill: str) -> str:
-    index = text.lower().find(skill.lower())
+    matched_alias = next(
+        (alias for alias in SKILL_ALIASES.get(skill, [skill]) if alias.lower() in text.lower()),
+        skill,
+    )
+    index = text.lower().find(matched_alias.lower())
     if index < 0:
         return ""
     start = max(index - 35, 0)
-    end = min(index + len(skill) + 45, len(text))
+    end = min(index + len(matched_alias) + 45, len(text))
     return text[start:end].strip()
 
 
@@ -130,6 +161,9 @@ def parse_resume_text(text: str) -> CandidateProfile:
         skills=skills,
         expected_salary=_extract_expected_salary(text),
         current_status=_extract_current_status(text),
+        graduation_year=_extract_graduation_year(text),
+        internships=_extract_internships(text),
+        campus_projects=_extract_campus_projects(text),
         work_experiences=_extract_work_experiences(text),
         skill_evidence=_extract_skill_evidence(text, skills),
     )

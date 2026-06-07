@@ -32,6 +32,22 @@ def test_parse_resume_text_supports_campus_style_resume() -> None:
     assert profile.current_status == "应届"
 
 
+def test_parse_resume_text_separates_projects_and_internships_from_work_experience() -> None:
+    profile = parse_resume_text(
+        "苏鹏\n2025-04 至今 泰莱大学 应用计算机（数据科学方向）| 硕士\n"
+        "项目经历\n智图寻宝——基于CNN算法的智能商品识别系统|独立开发者\n"
+        "项目描述: 基于 PyTorch 和 Flask 开发计算机视觉系统。\n"
+        "会计助理（实习） | 某建筑工程有限公司\n"
+        "技能标签: Python, Streamlit, Feature Engineering, Data Pipeline"
+    )
+
+    assert profile.current_status == "在读"
+    assert profile.work_experiences == []
+    assert profile.campus_projects
+    assert profile.internships
+    assert set(profile.skills) >= {"Python", "PyTorch", "Flask", "Streamlit"}
+
+
 def test_parse_resume_text_creates_skill_evidence() -> None:
     profile = parse_resume_text(
         "姓名：王五。负责使用 Redis 优化热点数据缓存，熟悉 Docker 部署。"

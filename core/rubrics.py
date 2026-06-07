@@ -64,11 +64,16 @@ def infer_candidate_track(
             candidate.track_reason or "候选人信息中已给出招聘轨道。"
         )
 
+    if (
+        candidate.current_status in {"应届", "在读"}
+        or candidate.internships
+        or candidate.campus_projects
+        or candidate.graduation_year
+    ) and candidate.years_experience == 0:
+        return "campus", 0.75, "候选人缺少正式工作经历，主要证据来自校园项目、实习或毕业信息。"
+
     if candidate.years_experience >= 1 or candidate.work_experiences:
         return "experienced", 0.85, "候选人具备正式工作年限或工作经历。"
-
-    if candidate.internships or candidate.campus_projects or candidate.graduation_year:
-        return "campus", 0.75, "候选人缺少正式工作经历，主要证据来自校园项目、实习或毕业信息。"
 
     return "unknown", 0.40, "候选人轨道无法可靠判断，需要人工确认。"
 

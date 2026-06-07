@@ -15,4 +15,5 @@ pytest-cache-files-*/
 
 models/*.pkl
 data/*.csv
+data/examples/*.pdf
 data/test_outputs/
