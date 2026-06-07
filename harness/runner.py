@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from graph.workflow import build_workflow
+from harness.evaluator import evaluate_workflow_result
 from harness.test_cases import sample_candidate_case
 
 
@@ -9,6 +10,7 @@ def run_evaluation(
     resume_file_path: str | None = None,
     jd_text: str | None = None,
     request_id: str | None = None,
+    include_quality_check: bool = False,
 ) -> dict:
     workflow = build_workflow()
     initial_state = sample_candidate_case()
@@ -20,7 +22,10 @@ def run_evaluation(
     if request_id is not None:
         initial_state["request_id"] = request_id
 
-    return workflow.invoke(initial_state)
+    result = workflow.invoke(initial_state)
+    if include_quality_check:
+        result["report_quality"] = evaluate_workflow_result(result).as_dict()
+    return result
 
 
 def run_demo() -> dict:
