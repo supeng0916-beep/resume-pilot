@@ -1,22 +1,44 @@
 from __future__ import annotations
 
+from pydantic import ValidationError
+
+from core.schemas import CandidateProfile, DocumentMeta, JobProfile
 from core.state import WorkflowState
 from harness.trace import add_trace
 
 
+def _format_validation_error(prefix: str, error: ValidationError) -> list[str]:
+    messages: list[str] = []
+    for item in error.errors():
+        location = ".".join(str(part) for part in item["loc"])
+        messages.append(f"{prefix}.{location}: {item['msg']}")
+    return messages
+
+
 def validator_node(state: WorkflowState) -> WorkflowState:
     errors: list[str] = []
-    candidate = state.get("candidate_profile") or {}
-    job = state.get("job_profile") or {}
+    updates: WorkflowState = {}
 
-    if not candidate.get("skills"):
-        errors.append("candidate_profile.skills is required")
-    if not isinstance(candidate.get("years_experience"), int):
-        errors.append("candidate_profile.years_experience must be int")
-    if not job.get("required_skills"):
-        errors.append("job_profile.required_skills is required")
+    try:
+        updates["candidate_profile"] = CandidateProfile.model_validate(
+            state.get("candidate_profile")
+        ).model_dump()
+    except ValidationError as error:
+        errors.extend(_format_validation_error("candidate_profile", error))
 
-    return {
+    try:
+        updates["job_profile"] = JobProfile.model_validate(state.get("job_profile")).model_dump()
+    except ValidationError as error:
+        errors.extend(_format_validation_error("job_profile", error))
+
+    document_meta = state.get("document_meta")
+    if document_meta is not None:
+        try:
+            updates["document_meta"] = DocumentMeta.model_validate(document_meta).model_dump()
+        except ValidationError as error:
+            errors.extend(_format_validation_error("document_meta", error))
+
+    updates.update({
         "validation_errors": errors,
         "current_step": "validator",
         "trace": add_trace(
@@ -25,4 +47,5 @@ def validator_node(state: WorkflowState) -> WorkflowState:
             "Validation passed." if not errors else f"Validation failed: {len(errors)} errors.",
             {"errors": errors},
         ),
-    }
+    })
+    return updates

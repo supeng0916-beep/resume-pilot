@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from core.schemas import MatchBreakdown
 from core.state import WorkflowState
 from harness.trace import add_trace
 
@@ -15,11 +16,11 @@ def matcher_node(state: WorkflowState) -> WorkflowState:
     experience_score = 1.0 if candidate.get("years_experience", 0) >= job.get("required_years", 0) else 0.5
     match_score = round((skill_score * 0.7 + experience_score * 0.3) * 100, 2)
 
-    match_breakdown = {
-        "skill_score": round(skill_score * 100, 2),
-        "experience_score": round(experience_score * 100, 2),
-        "matched_skills": matched_skills,
-    }
+    match_breakdown = MatchBreakdown(
+        skill_score=round(skill_score * 100, 2),
+        experience_score=round(experience_score * 100, 2),
+        matched_skills=matched_skills,
+    ).model_dump()
 
     return {
         "match_score": match_score,
