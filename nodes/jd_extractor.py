@@ -3,21 +3,9 @@ from __future__ import annotations
 import re
 
 from core.schemas import JobProfile
+from core.skills import extract_known_skills
 from core.state import WorkflowState
 from harness.trace import add_trace
-
-
-KNOWN_SKILLS = [
-    "Python",
-    "FastAPI",
-    "PostgreSQL",
-    "Redis",
-    "MySQL",
-    "Docker",
-    "Kubernetes",
-    "LangGraph",
-    "LLM",
-]
 
 
 def _extract_required_years(jd_text: str) -> int:
@@ -28,7 +16,7 @@ def _extract_required_years(jd_text: str) -> int:
 
 
 def _extract_skills(jd_text: str) -> list[str]:
-    skills = [skill for skill in KNOWN_SKILLS if skill.lower() in jd_text.lower()]
+    skills = extract_known_skills(jd_text)
     return skills or ["Python", "FastAPI", "PostgreSQL", "Redis"]
 
 
