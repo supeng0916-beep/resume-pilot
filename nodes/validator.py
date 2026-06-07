@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import ValidationError
 
-from core.schemas import CandidateProfile, DocumentMeta, JobProfile
+from core.schemas import CandidateProfile, DocumentMeta, JobProfile, ScoringRubric
 from core.state import WorkflowState
 from harness.trace import add_trace
 
@@ -37,6 +37,13 @@ def validator_node(state: WorkflowState) -> WorkflowState:
             updates["document_meta"] = DocumentMeta.model_validate(document_meta).model_dump()
         except ValidationError as error:
             errors.extend(_format_validation_error("document_meta", error))
+
+    scoring_rubric = state.get("scoring_rubric")
+    if scoring_rubric is not None:
+        try:
+            updates["scoring_rubric"] = ScoringRubric.model_validate(scoring_rubric).model_dump()
+        except ValidationError as error:
+            errors.extend(_format_validation_error("scoring_rubric", error))
 
     retry_count = state.get("retry_count", 0)
     if errors:

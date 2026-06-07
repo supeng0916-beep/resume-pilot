@@ -15,6 +15,7 @@ def sample_candidate_case() -> WorkflowState:
         "document_meta": None,
         "candidate_profile": None,
         "job_profile": None,
+        "scoring_rubric": None,
         "validation_errors": [],
         "retry_count": 0,
         "max_retries": 3,

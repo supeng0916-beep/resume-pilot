@@ -12,6 +12,7 @@ class WorkflowState(TypedDict, total=False):
 
     candidate_profile: dict[str, Any] | None
     job_profile: dict[str, Any] | None
+    scoring_rubric: dict[str, Any] | None
 
     validation_errors: list[str]
     retry_count: int
