@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 from harness.batch_runner import resume_inputs_from_paths, run_batch_evaluation
 from harness.runner import print_result, replay_evaluation, run_evaluation
+
+
+def write_report_output(output_path: str, report: str) -> None:
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(report, encoding="utf-8")
 
 
 def parse_args() -> argparse.Namespace:
@@ -57,6 +64,10 @@ def parse_args() -> argparse.Namespace:
         "--replay",
         help="Run the workflow from a saved replay case JSON file.",
     )
+    parser.add_argument(
+        "--output",
+        help="Optional path to save the generated Markdown report.",
+    )
     return parser.parse_args()
 
 
@@ -75,19 +86,22 @@ if __name__ == "__main__":
             risk_model_path=args.risk_model_path,
         )
         print(batch_result["batch_report"])
+        if args.output:
+            write_report_output(args.output, batch_result["batch_report"])
         raise SystemExit(0)
 
-    print_result(
-        run_evaluation(
-            resume_file_path=args.resume[0] if args.resume else None,
-            jd_text=args.jd,
-            request_id=args.request_id,
-            human_decision=args.human_decision,
-            human_feedback=args.human_feedback,
-            persist_human_feedback=args.persist_human_feedback,
-            feedback_memory_path=args.feedback_memory_path,
-            risk_model_path=args.risk_model_path,
-            save_replay=args.save_replay,
-            replay_dir=args.replay_dir,
-        )
+    result = run_evaluation(
+        resume_file_path=args.resume[0] if args.resume else None,
+        jd_text=args.jd,
+        request_id=args.request_id,
+        human_decision=args.human_decision,
+        human_feedback=args.human_feedback,
+        persist_human_feedback=args.persist_human_feedback,
+        feedback_memory_path=args.feedback_memory_path,
+        risk_model_path=args.risk_model_path,
+        save_replay=args.save_replay,
+        replay_dir=args.replay_dir,
     )
+    print_result(result)
+    if args.output:
+        write_report_output(args.output, result.get("report") or "")
