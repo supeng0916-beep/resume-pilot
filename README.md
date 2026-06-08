@@ -46,7 +46,18 @@ $env:HR_SMTP_USE_SSL="true"
 
 If SMTP is not configured, the control cabin will keep the report available for preview and download without sending email.
 
-The current version is a walking skeleton with text-based PDF parsing and mock extraction/evaluation nodes. It runs end to end without LLMs, databases, or trained ML models.
+The current version runs an end-to-end LangGraph HR evaluation workflow with batch ranking, OCR fallback, replay harness, human review, report export, a Streamlit control cabin, and optional email delivery. It still runs without a real LLM, database, or trained cloud model by default.
+
+## HR Tools
+
+Reusable tool adapters live in `tools/hr_tools.py`. They wrap existing capabilities so future LLM agents can call them through a stable tool boundary:
+
+- `parse_resume_pdf`
+- `extract_resume_profile`
+- `extract_jd_profile`
+- `run_batch_evaluation`
+- `save_batch_report`
+- `send_report_email`
 
 ## OCR for Scanned Resumes
 

@@ -932,14 +932,14 @@ agentic-hr/
 
 先不要急着做 Redis、Docker、前后端分离。
 
-当前最重要的是完成一个可信的 MVP：
+当前 MVP 闭环已经基本完成：
 
 ```text
 CLI 可运行 LangGraph 工作流
     ↓
-PDF 简历能解析为干净文本
+PDF 简历能解析为干净文本，图片型 PDF 可走 OCR fallback
     ↓
-LLM 能结构化抽取简历和 JD
+规则/工具层能结构化抽取简历和 JD
     ↓
 Pydantic 能校验并触发 retry
     ↓
@@ -950,6 +950,12 @@ Pydantic 能校验并触发 retry
 人工审批能暂停和记录反馈
     ↓
 Streamlit 控制舱能演示完整流程
+    ↓
+Tools 层封装 PDF 解析、结构化抽取、批量评估、报告保存和邮件发送
 ```
 
-等这个闭环完成后，再逐步加入数据库、Docker、FastAPI、Redis 和并发能力。
+下一步优先接入 LLM，但不要一上来让 LLM 直接决定最终分数。更稳妥的顺序是：
+
+1. 将 LLM 接到报告增强/面试问题生成节点。
+2. 再将 LLM 接到简历和 JD 结构化抽取节点，并继续保留 Pydantic 校验与 retry。
+3. 最后再考虑数据库、Docker、FastAPI、Redis 和并发能力。
