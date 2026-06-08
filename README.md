@@ -27,6 +27,12 @@ Run a batch evaluation and save a Markdown report:
 D:\python\python.exe main.py --resume data\examples\candidate-a.pdf --resume data\examples\candidate-b.pdf --jd "校招 AI 工程师，要求 Python、机器学习和项目经历。" --output data\test_outputs\batch_report.md
 ```
 
+Start the local control cabin:
+
+```powershell
+D:\python\python.exe -m streamlit run app\streamlit_app.py
+```
+
 The current version is a walking skeleton with text-based PDF parsing and mock extraction/evaluation nodes. It runs end to end without LLMs, databases, or trained ML models.
 
 ## OCR for Scanned Resumes
