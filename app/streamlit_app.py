@@ -36,6 +36,7 @@ def main() -> None:
         )
         feedback_memory_path = st.text_input("反馈记忆路径", value="memory/review_feedback.json")
         risk_model_path = st.text_input("风险模型路径", value="")
+        enable_llm_report_enhancement = st.checkbox("逐候选人 LLM 报告增强", value=False)
 
     jd_text = st.text_area("岗位 JD", value=DEFAULT_JD, height=140)
     uploaded_files = st.file_uploader(
@@ -52,10 +53,12 @@ def main() -> None:
             status_box = st.empty()
 
             def update_progress(index, total, resume, status):
-                current = min(index / max(total, 1), 1.0)
+                completed = index if status == "completed" else index - 1
+                current = min(completed / max(total, 1), 1.0)
                 progress_bar.progress(current)
                 status_label = "正在处理" if status == "started" else "已完成"
-                status_box.info(f"{status_label} {index}/{total}: {Path(resume.resume_file_path or resume.candidate_id).name}")
+                current_file = Path(resume.resume_file_path or resume.candidate_id).name
+                status_box.info(f"{status_label} {index}/{total}: {current_file}")
 
             batch_result = run_batch_evaluation(
                 resume_inputs_from_paths(saved_paths),
@@ -63,8 +66,10 @@ def main() -> None:
                 request_id=request_id,
                 feedback_memory_path=feedback_memory_path or None,
                 risk_model_path=risk_model_path or None,
+                enable_llm_report_enhancement=enable_llm_report_enhancement,
                 progress_callback=update_progress,
             )
+            progress_bar.progress(1.0)
             status_box.success(f"批量评估完成：{len(saved_paths)} 份简历")
             report_path = save_batch_report(batch_result, request_id=request_id)
             st.session_state["batch_result"] = batch_result

@@ -27,6 +27,12 @@ Run a batch evaluation and save a Markdown report:
 D:\python\python.exe main.py --resume data\examples\candidate-a.pdf --resume data\examples\candidate-b.pdf --jd "校招 AI 工程师，要求 Python、机器学习和项目经历。" --output data\test_outputs\batch_report.md
 ```
 
+For faster batch runs when LLM is enabled:
+
+```powershell
+D:\python\python.exe main.py --resume data\examples\candidate-a.pdf --resume data\examples\candidate-b.pdf --jd "校招 AI 工程师，要求 Python、机器学习和项目经历。" --disable-llm-report-enhancement
+```
+
 Start the local control cabin:
 
 ```powershell
@@ -64,6 +70,8 @@ HR_OCR_TIMEOUT_SECONDS=12
 ```
 
 `HR_LLM_BASE_URL` expects an OpenAI-compatible Chat Completions endpoint. If the LLM is disabled, missing config, or the request fails, the deterministic report is still generated. For image-only PDFs, OCR is attempted with `HR_OCR_TIMEOUT_SECONDS`; when OCR times out or produces low-quality text, the parser can fall back to the configured vision-capable LLM.
+
+The Streamlit control cabin disables per-candidate LLM report enhancement by default to keep batch uploads responsive. Turn on "逐候选人 LLM 报告增强" in the sidebar when you want richer individual reports.
 
 ## HR Tools
 

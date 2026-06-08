@@ -45,3 +45,17 @@ def test_report_writer_appends_llm_enhancement_when_available(monkeypatch) -> No
     assert "## LLM 辅助增强" in result["report"]
     assert "建议追问项目贡献边界" in result["report"]
     assert result["llm_enhancement_status"] == "LLM 增强已生成。"
+
+
+def test_report_writer_can_disable_llm_enhancement(monkeypatch) -> None:
+    state = build_workflow().invoke(sample_candidate_case())
+    state["enable_llm_report_enhancement"] = False
+
+    def fail_if_called(state, report):
+        raise AssertionError("LLM enhancement should not be called")
+
+    monkeypatch.setattr("nodes.report_writer.generate_report_llm_enhancement", fail_if_called)
+    result = report_writer_node(state)
+
+    assert "## LLM 辅助增强" not in result["report"]
+    assert result["llm_enhancement_status"] == "LLM 报告增强已在本次运行中关闭。"

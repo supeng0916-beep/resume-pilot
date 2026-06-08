@@ -68,6 +68,11 @@ def parse_args() -> argparse.Namespace:
         "--output",
         help="Optional path to save the generated Markdown report.",
     )
+    parser.add_argument(
+        "--disable-llm-report-enhancement",
+        action="store_true",
+        help="Skip optional per-candidate LLM report enhancement for faster runs.",
+    )
     return parser.parse_args()
 
 
@@ -84,6 +89,7 @@ if __name__ == "__main__":
             request_id=args.request_id,
             feedback_memory_path=args.feedback_memory_path,
             risk_model_path=args.risk_model_path,
+            enable_llm_report_enhancement=False if args.disable_llm_report_enhancement else None,
         )
         print(batch_result["batch_report"])
         if args.output:
@@ -99,6 +105,7 @@ if __name__ == "__main__":
         persist_human_feedback=args.persist_human_feedback,
         feedback_memory_path=args.feedback_memory_path,
         risk_model_path=args.risk_model_path,
+        enable_llm_report_enhancement=False if args.disable_llm_report_enhancement else None,
         save_replay=args.save_replay,
         replay_dir=args.replay_dir,
     )

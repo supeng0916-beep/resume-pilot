@@ -26,6 +26,9 @@ class OCRUnavailableError(RuntimeError):
     pass
 
 
+_DEFAULT_OCR_PROVIDER: OCRProvider | None = None
+
+
 def _ocr_render_dir() -> Path:
     base_dir = Path("data/test_outputs/ocr_tmp")
     base_dir.mkdir(parents=True, exist_ok=True)
@@ -125,9 +128,14 @@ class EasyOCRProvider:
 
 
 def get_default_ocr_provider() -> OCRProvider | None:
+    global _DEFAULT_OCR_PROVIDER
+    if _DEFAULT_OCR_PROVIDER is not None:
+        return _DEFAULT_OCR_PROVIDER
+
     for provider_cls in (EasyOCRProvider, PaddleOCRProvider):
         try:
-            return provider_cls()
+            _DEFAULT_OCR_PROVIDER = provider_cls()
+            return _DEFAULT_OCR_PROVIDER
         except (OCRUnavailableError, Exception):
             continue
     return None

@@ -75,6 +75,22 @@ def test_run_batch_evaluation_reports_progress_events() -> None:
     ]
 
 
+def test_run_batch_evaluation_can_disable_candidate_llm_reports() -> None:
+    result = run_batch_evaluation(
+        [
+            BatchResumeInput(
+                candidate_id="candidate-a",
+                resume_text="姓名：李明\n本科\n项目经历：使用 Python 完成数据分析。",
+            )
+        ],
+        jd_text="校招数据分析工程师，要求 Python。",
+        request_id="llm-disabled-batch",
+        enable_llm_report_enhancement=False,
+    )
+
+    assert result["results"][0]["llm_enhancement_status"] == "LLM 报告增强已在本次运行中关闭。"
+
+
 def test_batch_report_does_not_recommend_ocr_failed_candidates() -> None:
     summaries = [
         {

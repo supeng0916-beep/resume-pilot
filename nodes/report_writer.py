@@ -25,6 +25,14 @@ def report_writer_node(state: WorkflowState) -> WorkflowState:
         }
 
     report = render_markdown_report(state)
+    if state.get("enable_llm_report_enhancement") is False:
+        return {
+            "report": report,
+            "current_step": "report_writer",
+            "llm_enhancement_status": "LLM 报告增强已在本次运行中关闭。",
+            "trace": add_trace(state, "report_writer", "Generated structured evaluation report without LLM enhancement."),
+        }
+
     enhancement = generate_report_llm_enhancement(state, report)
     output_summary = "Generated structured evaluation report."
     if enhancement.content:
