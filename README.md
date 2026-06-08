@@ -36,8 +36,22 @@ D:\python\python.exe main.py --resume data\examples\candidate-a.pdf --resume dat
 Start the local control cabin:
 
 ```powershell
-D:\python\python.exe -m streamlit run app\streamlit_app.py
+powershell -ExecutionPolicy Bypass -File scripts\start_control_cabin.ps1
 ```
+
+Open:
+
+```text
+http://127.0.0.1:8501
+```
+
+Stop the local control cabin after testing:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\stop_control_cabin.ps1
+```
+
+If you run `D:\python\python.exe -m streamlit run app\streamlit_app.py` directly, the terminal will stay occupied because Streamlit is a long-running web server. That is expected behavior, not a hang.
 
 Send batch reports from the control cabin by configuring SMTP environment variables:
 
@@ -53,6 +67,33 @@ $env:HR_SMTP_USE_SSL="true"
 If SMTP is not configured, the control cabin will keep the report available for preview and download without sending email.
 
 The current version runs an end-to-end LangGraph HR evaluation workflow with batch ranking, OCR fallback, replay harness, human review, report export, a Streamlit control cabin, and optional email delivery. It still runs without a real LLM, database, or trained cloud model by default.
+
+## Docker
+
+Build and run the demo control cabin without copying local secrets into the image:
+
+```powershell
+docker build -t agentic-hr .
+docker run --rm -p 8501:8501 --env-file .env agentic-hr
+```
+
+If you do not need LLM, OCR, or SMTP integrations, omit `--env-file .env`.
+
+The Docker image installs only `requirements.txt`. Local OCR dependencies stay optional in `requirements-ocr.txt` because EasyOCR/PaddleOCR are large and can make demo builds slow.
+
+## Testing
+
+Run the full regression suite:
+
+```powershell
+D:\python\python.exe -m pytest -q
+```
+
+Run the control-cabin focused tests:
+
+```powershell
+D:\python\python.exe -m pytest tests\test_control_cabin.py tests\test_batch_runner.py -q
+```
 
 ## Optional LLM Enhancement
 
