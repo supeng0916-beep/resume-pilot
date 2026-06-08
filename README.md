@@ -66,10 +66,12 @@ HR_LLM_BASE_URL=https://api.openai.com/v1/chat/completions
 HR_LLM_TIMEOUT_SECONDS=30
 HR_LLM_IGNORE_PROXY=true
 HR_LLM_PDF_MAX_PAGES=3
+HR_IMAGE_PDF_PARSE_STRATEGY=vision_first
+HR_ENABLE_LOCAL_OCR=false
 HR_OCR_TIMEOUT_SECONDS=12
 ```
 
-`HR_LLM_BASE_URL` expects an OpenAI-compatible Chat Completions endpoint. If the LLM is disabled, missing config, or the request fails, the deterministic report is still generated. For image-only PDFs, OCR is attempted with `HR_OCR_TIMEOUT_SECONDS`; when OCR times out or produces low-quality text, the parser can fall back to the configured vision-capable LLM.
+`HR_LLM_BASE_URL` expects an OpenAI-compatible Chat Completions endpoint. If the LLM is disabled, missing config, or the request fails, the deterministic report is still generated. For image-only PDFs, the parser defaults to `vision_first` and keeps local OCR disabled to avoid slow batch uploads. Set `HR_ENABLE_LOCAL_OCR=true` if you want EasyOCR/PaddleOCR fallback, with `HR_OCR_TIMEOUT_SECONDS` as the soft timeout.
 
 The Streamlit control cabin disables per-candidate LLM report enhancement by default to keep batch uploads responsive. Turn on "逐候选人 LLM 报告增强" in the sidebar when you want richer individual reports.
 

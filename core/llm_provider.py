@@ -69,6 +69,9 @@ class OpenAICompatibleChatClient:
             open_request = opener.open if opener is not None else urllib.request.urlopen
             with open_request(request, timeout=config.timeout_seconds) as response:
                 response_payload = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            error_body = exc.read().decode("utf-8", errors="replace")[:500]
+            raise RuntimeError(f"LLM request failed: HTTP {exc.code}: {error_body}") from exc
         except urllib.error.URLError as exc:
             raise RuntimeError(f"LLM request failed: {exc}") from exc
 

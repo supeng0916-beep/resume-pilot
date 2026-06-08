@@ -45,11 +45,15 @@ def calculate_rank_score(result: dict[str, Any]) -> float:
 def _build_candidate_summary(candidate_id: str, result: dict[str, Any]) -> dict[str, Any]:
     candidate = result.get("candidate_profile") or {}
     match_breakdown = result.get("match_breakdown") or {}
-    needs_ocr = (result.get("document_meta") or {}).get("needs_ocr", False)
+    document_meta = result.get("document_meta") or {}
+    needs_ocr = document_meta.get("needs_ocr", False)
     evidence_confidence = _evidence_confidence(result)
     review_reasons = []
     if needs_ocr:
-        review_reasons.append("PDF 需要 OCR，当前文本解析不可用")
+        review_reasons.append("PDF 解析未获得可信文本")
+    parse_quality_flags = document_meta.get("parse_quality_flags") or []
+    if parse_quality_flags:
+        review_reasons.append("解析质量标记：" + "; ".join(str(flag) for flag in parse_quality_flags[:3]))
     if evidence_confidence == 0:
         review_reasons.append("缺少可用于评分的技能/项目证据")
     if float(result.get("risk_score") or 0) >= 0.5:

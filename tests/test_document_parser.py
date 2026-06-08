@@ -89,6 +89,23 @@ def test_parse_pdf_marks_image_only_pdf_as_needing_ocr_without_provider() -> Non
     assert parsed.meta.text_length == 0
 
 
+def test_parse_pdf_skips_default_local_ocr_when_disabled(monkeypatch) -> None:
+    output_dir = Path("data/test_outputs")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    pdf_path = output_dir / f"scan-{uuid4().hex}.pdf"
+    _create_blank_pdf(pdf_path)
+
+    def fail_if_called():
+        raise AssertionError("default local OCR should be disabled unless HR_ENABLE_LOCAL_OCR=true")
+
+    monkeypatch.setattr("core.document_parser.get_default_ocr_provider", fail_if_called)
+
+    parsed = parse_pdf(pdf_path)
+
+    assert parsed.meta.needs_ocr is True
+    assert "local_ocr_disabled" in parsed.meta.parse_quality_flags
+
+
 def test_parse_pdf_uses_ocr_provider_for_image_only_pdf() -> None:
     output_dir = Path("data/test_outputs")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -122,6 +139,7 @@ def test_parse_pdf_falls_back_to_vision_llm_after_ocr_timeout(monkeypatch) -> No
     pdf_path = output_dir / f"scan-{uuid4().hex}.pdf"
     _create_blank_pdf(pdf_path)
     monkeypatch.setenv("HR_OCR_TIMEOUT_SECONDS", "0.01")
+    monkeypatch.setenv("HR_IMAGE_PDF_PARSE_STRATEGY", "ocr_first")
 
     def fake_vision(file_path):
         return LLMEnhancementResult(

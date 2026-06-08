@@ -17,6 +17,7 @@ from core.schemas import DocumentMeta
 MIN_TEXT_LENGTH_FOR_TEXT_PDF = 50
 MIN_TEXT_LENGTH_FOR_USABLE_PARSE = 20
 DEFAULT_OCR_TIMEOUT_SECONDS = 12.0
+DEFAULT_IMAGE_PDF_PARSE_STRATEGY = "vision_first"
 
 
 @dataclass(frozen=True)
@@ -71,6 +72,17 @@ def assess_parse_quality(text: str) -> tuple[float, list[str]]:
 def _ocr_timeout_seconds() -> float:
     load_dotenv()
     return float(os.getenv("HR_OCR_TIMEOUT_SECONDS", str(DEFAULT_OCR_TIMEOUT_SECONDS)))
+
+
+def _image_pdf_parse_strategy() -> str:
+    load_dotenv()
+    strategy = os.getenv("HR_IMAGE_PDF_PARSE_STRATEGY", DEFAULT_IMAGE_PDF_PARSE_STRATEGY).lower()
+    return strategy if strategy in {"vision_first", "ocr_first"} else DEFAULT_IMAGE_PDF_PARSE_STRATEGY
+
+
+def _local_ocr_enabled() -> bool:
+    load_dotenv()
+    return os.getenv("HR_ENABLE_LOCAL_OCR", "false").lower() in {"1", "true", "yes"}
 
 
 def _extract_ocr_with_timeout(provider: OCRProvider, path: Path, timeout_seconds: float) -> tuple[str, str | None]:
@@ -140,10 +152,32 @@ def parse_pdf(
     fallback_text = cleaned_text
     fallback_parser = "pymupdf"
     fallback_flags: list[str] = []
-    provider = None
-    if use_ocr:
-        provider = ocr_provider if ocr_provider is not None else get_default_ocr_provider()
-    if provider is not None:
+    strategy = _image_pdf_parse_strategy()
+
+    def try_vision_llm() -> ParsedDocument | None:
+        vision_result = extract_pdf_text_with_vision_llm(path)
+        vision_text = clean_extracted_text(vision_result.content)
+        if vision_text:
+            meta = _build_meta(
+                path=path,
+                page_count=page_count,
+                parser="pymupdf+vision_llm",
+                needs_ocr=False,
+                text=vision_text,
+            )
+            return ParsedDocument(text=vision_text, meta=meta)
+        if vision_result.enabled:
+            fallback_flags.append(vision_result.provider_message)
+        return None
+
+    def try_local_ocr() -> ParsedDocument | None:
+        nonlocal fallback_text, fallback_parser, fallback_flags
+        provider = ocr_provider
+        if provider is None and use_ocr and _local_ocr_enabled():
+            provider = get_default_ocr_provider()
+        if provider is None:
+            fallback_flags.append("local_ocr_disabled")
+            return None
         try:
             raw_ocr_text, timeout_message = _extract_ocr_with_timeout(provider, path, _ocr_timeout_seconds())
             ocr_text = clean_extracted_text(raw_ocr_text)
@@ -164,19 +198,14 @@ def parse_pdf(
             elif timeout_message:
                 fallback_flags.append(timeout_message)
         except Exception:
-            pass
+            fallback_flags.append("local_ocr_failed")
+        return None
 
-    vision_result = extract_pdf_text_with_vision_llm(path)
-    vision_text = clean_extracted_text(vision_result.content)
-    if vision_text:
-        meta = _build_meta(
-            path=path,
-            page_count=page_count,
-            parser="pymupdf+vision_llm",
-            needs_ocr=False,
-            text=vision_text,
-        )
-        return ParsedDocument(text=vision_text, meta=meta)
+    steps = [try_vision_llm, try_local_ocr] if strategy == "vision_first" else [try_local_ocr, try_vision_llm]
+    for step in steps:
+        parsed = step()
+        if parsed is not None:
+            return parsed
 
     meta = _build_meta(
         path=path,
@@ -184,7 +213,7 @@ def parse_pdf(
         parser=fallback_parser,
         needs_ocr=True,
         text=fallback_text,
-        extra_flags=[*fallback_flags, *([vision_result.provider_message] if vision_result.enabled else [])],
+        extra_flags=fallback_flags,
     )
 
     return ParsedDocument(text=fallback_text, meta=meta)
