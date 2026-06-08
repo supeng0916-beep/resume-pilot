@@ -45,6 +45,18 @@ def calculate_rank_score(result: dict[str, Any]) -> float:
 def _build_candidate_summary(candidate_id: str, result: dict[str, Any]) -> dict[str, Any]:
     candidate = result.get("candidate_profile") or {}
     match_breakdown = result.get("match_breakdown") or {}
+    needs_ocr = (result.get("document_meta") or {}).get("needs_ocr", False)
+    evidence_confidence = _evidence_confidence(result)
+    review_reasons = []
+    if needs_ocr:
+        review_reasons.append("PDF 需要 OCR，当前文本解析不可用")
+    if evidence_confidence == 0:
+        review_reasons.append("缺少可用于评分的技能/项目证据")
+    if float(result.get("risk_score") or 0) >= 0.5:
+        review_reasons.append("风险分较高")
+    if result.get("errors"):
+        review_reasons.append("流程存在错误")
+
     return {
         "candidate_id": candidate_id,
         "name": candidate.get("name", "未知候选人"),
@@ -52,20 +64,31 @@ def _build_candidate_summary(candidate_id: str, result: dict[str, Any]) -> dict[
         "match_score": result.get("match_score"),
         "risk_score": result.get("risk_score"),
         "rank_score": calculate_rank_score(result),
-        "evidence_confidence": _evidence_confidence(result),
+        "evidence_confidence": evidence_confidence,
         "matched_skills": match_breakdown.get("matched_skills", []),
         "human_review_status": result.get("human_review_status"),
-        "needs_ocr": (result.get("document_meta") or {}).get("needs_ocr", False),
+        "needs_ocr": needs_ocr,
+        "review_reasons": review_reasons,
         "errors": result.get("errors", []),
     }
 
 
 def render_batch_report(summaries: list[dict[str, Any]], *, jd_text: str | None = None) -> str:
-    top_candidates = summaries[:3]
+    eligible_candidates = [
+        item
+        for item in summaries
+        if not item.get("needs_ocr")
+        and item.get("evidence_confidence", 0) > 0
+        and (item.get("matched_skills") or [])
+    ]
+    top_candidates = eligible_candidates[:3]
     review_needed = [
         item
         for item in summaries
-        if item.get("needs_ocr") or item.get("risk_score", 0) >= 0.5 or item.get("errors")
+        if item.get("needs_ocr")
+        or item.get("evidence_confidence", 0) == 0
+        or item.get("risk_score", 0) >= 0.5
+        or item.get("errors")
     ]
     skill_matrix = sorted(
         {
@@ -75,9 +98,13 @@ def render_batch_report(summaries: list[dict[str, Any]], *, jd_text: str | None 
         }
     )
     review_lines = [
-        f"- {item['name']}（{item['candidate_id']}）：风险分 {item['risk_score']}，错误 {item.get('errors') or '无'}"
+        f"- {item['name']}（{item['candidate_id']}）：{'; '.join(item.get('review_reasons') or ['需人工确认'])}"
         for item in review_needed
     ] or ["- 暂无需要额外标记的候选人。"]
+    recommendation_lines = [
+        f"- {item['name']}（{item['candidate_id']}）：{', '.join(item.get('matched_skills', [])) or '暂无匹配技能'}"
+        for item in top_candidates
+    ] or ["- 暂无可直接推荐候选人；请先完成人工/OCR复核。"]
 
     sections = [
         "# 批量候选人评估汇总",
@@ -95,10 +122,7 @@ def render_batch_report(summaries: list[dict[str, Any]], *, jd_text: str | None 
         ],
         "",
         "## 推荐进入下一轮",
-        *[
-            f"- {item['name']}（{item['candidate_id']}）：{', '.join(item.get('matched_skills', [])) or '暂无匹配技能'}"
-            for item in top_candidates
-        ],
+        *recommendation_lines,
         "",
         "## 需要人工重点复核",
         *review_lines,

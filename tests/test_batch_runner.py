@@ -48,3 +48,27 @@ def test_run_batch_evaluation_ranks_candidates_and_builds_report() -> None:
     assert "技能覆盖矩阵" in result["batch_report"]
     assert len(result["results"]) == 2
     assert result["results"][0]["document_meta"]["parser"] == "provided_text"
+
+
+def test_batch_report_does_not_recommend_ocr_failed_candidates() -> None:
+    summaries = [
+        {
+            "candidate_id": "scan-only",
+            "name": "未知候选人",
+            "rank_score": 30,
+            "match_score": 41,
+            "risk_score": 0.47,
+            "evidence_confidence": 0,
+            "matched_skills": [],
+            "needs_ocr": True,
+            "review_reasons": ["PDF 需要 OCR，当前文本解析不可用"],
+            "errors": [],
+        }
+    ]
+
+    from harness.batch_runner import render_batch_report
+
+    report = render_batch_report(summaries, jd_text="校招 AI 工程师")
+
+    assert "暂无可直接推荐候选人" in report
+    assert "PDF 需要 OCR" in report
