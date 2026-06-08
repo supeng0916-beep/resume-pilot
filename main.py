@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from harness.runner import print_result, run_evaluation
+from harness.runner import print_result, replay_evaluation, run_evaluation
 
 
 def parse_args() -> argparse.Namespace:
@@ -38,11 +38,28 @@ def parse_args() -> argparse.Namespace:
         "--feedback-memory-path",
         help="Path for persisted human feedback memory. Defaults to memory/review_feedback.json.",
     )
+    parser.add_argument(
+        "--save-replay",
+        action="store_true",
+        help="Save this run as a replay case for regression testing.",
+    )
+    parser.add_argument(
+        "--replay-dir",
+        help="Directory for saved replay cases. Defaults to data/replay_cases.",
+    )
+    parser.add_argument(
+        "--replay",
+        help="Run the workflow from a saved replay case JSON file.",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
+    if args.replay:
+        print_result(replay_evaluation(args.replay))
+        raise SystemExit(0)
+
     print_result(
         run_evaluation(
             resume_file_path=args.resume,
@@ -52,5 +69,7 @@ if __name__ == "__main__":
             human_feedback=args.human_feedback,
             persist_human_feedback=args.persist_human_feedback,
             feedback_memory_path=args.feedback_memory_path,
+            save_replay=args.save_replay,
+            replay_dir=args.replay_dir,
         )
     )

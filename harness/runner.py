@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from graph.workflow import build_workflow
 from harness.evaluator import evaluate_workflow_result
+from harness.replay import build_replay_case, initial_state_from_replay_case, load_replay_case, save_replay_case
 from harness.test_cases import sample_candidate_case
 
 
@@ -15,6 +16,8 @@ def run_evaluation(
     persist_human_feedback: bool = False,
     feedback_memory_path: str | None = None,
     include_quality_check: bool = False,
+    save_replay: bool = False,
+    replay_dir: str | None = None,
 ) -> dict:
     workflow = build_workflow()
     initial_state = sample_candidate_case()
@@ -37,6 +40,23 @@ def run_evaluation(
     result = workflow.invoke(initial_state)
     if include_quality_check:
         result["report_quality"] = evaluate_workflow_result(result).as_dict()
+    if save_replay:
+        replay_case = build_replay_case(initial_state=initial_state, result=result)
+        result["replay_path"] = str(save_replay_case(replay_case, replay_dir=replay_dir or "data/replay_cases"))
+    return result
+
+
+def replay_evaluation(replay_path: str, *, include_comparison: bool = True) -> dict:
+    workflow = build_workflow()
+    replay_case = load_replay_case(replay_path)
+    result = workflow.invoke(initial_state_from_replay_case(replay_case))
+    if include_comparison:
+        from harness.replay import compare_replay_result
+
+        result["replay_comparison"] = compare_replay_result(
+            replay_case=replay_case,
+            result=result,
+        )
     return result
 
 
@@ -51,6 +71,10 @@ def print_result(result: dict) -> None:
     print(f"Match score: {result.get('match_score')}")
     print(f"Risk score: {result.get('risk_score')}")
     print(f"Human review: {result.get('human_review_status')}")
+    if result.get("replay_path"):
+        print(f"Replay case: {result.get('replay_path')}")
+    if result.get("replay_comparison"):
+        print(f"Replay comparison: {result.get('replay_comparison')}")
     print(f"Document parser: {(result.get('document_meta') or {}).get('parser')}")
     print(f"Needs OCR: {(result.get('document_meta') or {}).get('needs_ocr')}")
     print("\n--- Report ---")

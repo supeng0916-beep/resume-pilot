@@ -17,4 +17,5 @@ models/*.pkl
 memory/review_feedback.json
 data/*.csv
 data/examples/*.pdf
+data/replay_cases/
 data/test_outputs/
