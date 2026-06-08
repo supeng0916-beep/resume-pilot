@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 
+from harness.batch_runner import resume_inputs_from_paths, run_batch_evaluation
 from harness.runner import print_result, replay_evaluation, run_evaluation
 
 
@@ -9,6 +10,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the Agentic HR evaluation workflow.")
     parser.add_argument(
         "--resume",
+        action="append",
         help="Path to a candidate resume PDF. Falls back to mock resume text if omitted.",
     )
     parser.add_argument(
@@ -64,9 +66,20 @@ if __name__ == "__main__":
         print_result(replay_evaluation(args.replay))
         raise SystemExit(0)
 
+    if args.resume and len(args.resume) > 1:
+        batch_result = run_batch_evaluation(
+            resume_inputs_from_paths(args.resume),
+            jd_text=args.jd,
+            request_id=args.request_id,
+            feedback_memory_path=args.feedback_memory_path,
+            risk_model_path=args.risk_model_path,
+        )
+        print(batch_result["batch_report"])
+        raise SystemExit(0)
+
     print_result(
         run_evaluation(
-            resume_file_path=args.resume,
+            resume_file_path=args.resume[0] if args.resume else None,
             jd_text=args.jd,
             request_id=args.request_id,
             human_decision=args.human_decision,

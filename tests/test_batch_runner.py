@@ -1,0 +1,50 @@
+from __future__ import annotations
+
+from harness.batch_runner import BatchResumeInput, calculate_rank_score, run_batch_evaluation
+
+
+def test_calculate_rank_score_rewards_evidence_and_penalizes_risk() -> None:
+    result = {
+        "match_score": 80,
+        "risk_score": 0.2,
+        "candidate_profile": {
+            "skill_evidence": [
+                {"skill": "Python", "evidence_strength": "strong"},
+                {"skill": "Redis", "evidence_strength": "unsupported"},
+            ]
+        },
+    }
+
+    assert calculate_rank_score(result) == 59.0
+
+
+def test_run_batch_evaluation_ranks_candidates_and_builds_report() -> None:
+    jd_text = "招聘 Python 后端工程师，要求熟悉 Python、FastAPI、Redis，有 3 年以上经验。"
+    resumes = [
+        BatchResumeInput(
+            candidate_id="backend-strong",
+            resume_text=(
+                "姓名：李强\n本科\n5 年 Python 后端开发经验。"
+                "项目经历：负责 FastAPI 服务开发，使用 Redis 做缓存优化。"
+                "期望薪资：30k"
+            ),
+        ),
+        BatchResumeInput(
+            candidate_id="frontend-weak",
+            resume_text=(
+                "姓名：王敏\n本科\n1 年前端开发经验。"
+                "技能：JavaScript、Vue。期望薪资：unknown"
+            ),
+        ),
+    ]
+
+    result = run_batch_evaluation(resumes, jd_text=jd_text, request_id="batch-test")
+
+    assert result["candidate_count"] == 2
+    assert result["ranked_candidates"][0]["candidate_id"] == "backend-strong"
+    assert result["ranked_candidates"][0]["rank_score"] > result["ranked_candidates"][1]["rank_score"]
+    assert "批量候选人评估汇总" in result["batch_report"]
+    assert "候选人排名" in result["batch_report"]
+    assert "技能覆盖矩阵" in result["batch_report"]
+    assert len(result["results"]) == 2
+    assert result["results"][0]["document_meta"]["parser"] == "provided_text"

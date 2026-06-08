@@ -9,6 +9,7 @@ from harness.test_cases import sample_candidate_case
 def run_evaluation(
     *,
     resume_file_path: str | None = None,
+    resume_text: str | None = None,
     jd_text: str | None = None,
     request_id: str | None = None,
     human_decision: str | None = None,
@@ -25,6 +26,8 @@ def run_evaluation(
 
     if resume_file_path is not None:
         initial_state["resume_file_path"] = resume_file_path
+    if resume_text is not None:
+        initial_state["resume_text"] = resume_text
     if jd_text is not None:
         initial_state["jd_text"] = jd_text
     if request_id is not None:
