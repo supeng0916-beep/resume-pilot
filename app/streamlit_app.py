@@ -36,6 +36,7 @@ def main() -> None:
         )
         feedback_memory_path = st.text_input("反馈记忆路径", value="memory/review_feedback.json")
         risk_model_path = st.text_input("风险模型路径", value="")
+        enable_llm_structured_extraction = st.checkbox("LLM 结构化抽取", value=False)
         enable_llm_report_enhancement = st.checkbox("逐候选人 LLM 报告增强", value=False)
 
     jd_text = st.text_area("岗位 JD", value=DEFAULT_JD, height=140)
@@ -67,6 +68,7 @@ def main() -> None:
                 feedback_memory_path=feedback_memory_path or None,
                 risk_model_path=risk_model_path or None,
                 enable_llm_report_enhancement=enable_llm_report_enhancement,
+                enable_llm_structured_extraction=enable_llm_structured_extraction,
                 progress_callback=update_progress,
             )
             progress_bar.progress(1.0)
@@ -167,6 +169,7 @@ def main() -> None:
                 st.write(
                     {
                         "document_meta": result.get("document_meta"),
+                        "llm_extraction_status": result.get("llm_extraction_status"),
                         "human_review_status": result.get("human_review_status"),
                         "errors": result.get("errors"),
                     }

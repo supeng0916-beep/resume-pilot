@@ -154,6 +154,7 @@ def run_batch_evaluation(
     feedback_memory_path: str | None = None,
     risk_model_path: str | None = None,
     enable_llm_report_enhancement: bool | None = None,
+    enable_llm_structured_extraction: bool | None = None,
     progress_callback: Callable[[int, int, BatchResumeInput, str], None] | None = None,
 ) -> dict[str, Any]:
     results: list[dict[str, Any]] = []
@@ -171,6 +172,7 @@ def run_batch_evaluation(
             feedback_memory_path=feedback_memory_path,
             risk_model_path=risk_model_path,
             enable_llm_report_enhancement=enable_llm_report_enhancement,
+            enable_llm_structured_extraction=enable_llm_structured_extraction,
         )
         results.append(result)
         summaries.append(_build_candidate_summary(resume.candidate_id, result))

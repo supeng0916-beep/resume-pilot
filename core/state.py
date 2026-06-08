@@ -30,6 +30,8 @@ class WorkflowState(TypedDict, total=False):
     report: str | None
     llm_enhancement_status: str | None
     enable_llm_report_enhancement: bool | None
+    enable_llm_structured_extraction: bool | None
+    llm_extraction_status: list[str]
     human_decision: str | None
     human_feedback: str | None
     human_review_required: bool

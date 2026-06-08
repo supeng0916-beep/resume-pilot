@@ -18,6 +18,7 @@ def run_evaluation(
     feedback_memory_path: str | None = None,
     risk_model_path: str | None = None,
     enable_llm_report_enhancement: bool | None = None,
+    enable_llm_structured_extraction: bool | None = None,
     include_quality_check: bool = False,
     save_replay: bool = False,
     replay_dir: str | None = None,
@@ -45,6 +46,8 @@ def run_evaluation(
         initial_state["risk_model_path"] = risk_model_path
     if enable_llm_report_enhancement is not None:
         initial_state["enable_llm_report_enhancement"] = enable_llm_report_enhancement
+    if enable_llm_structured_extraction is not None:
+        initial_state["enable_llm_structured_extraction"] = enable_llm_structured_extraction
 
     result = workflow.invoke(initial_state)
     if include_quality_check:
