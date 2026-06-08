@@ -17,6 +17,7 @@ from app.control_cabin import (  # noqa: E402
     save_batch_report,
     save_uploaded_resumes,
 )
+from core.email_sender import send_report_email  # noqa: E402
 from harness.batch_runner import resume_inputs_from_paths, run_batch_evaluation  # noqa: E402
 
 
@@ -73,7 +74,7 @@ def main() -> None:
     st.dataframe(build_ranking_rows(batch_result), use_container_width=True, hide_index=True)
 
     report_text = batch_result.get("batch_report") or ""
-    tab_report, tab_review, tab_detail = st.tabs(["报告预览", "人工复核", "候选人详情"])
+    tab_report, tab_review, tab_email, tab_detail = st.tabs(["报告预览", "人工复核", "邮件发送", "候选人详情"])
 
     with tab_report:
         st.markdown(report_text)
@@ -119,6 +120,27 @@ def main() -> None:
                 )
                 st.session_state["batch_result"] = batch_result
                 st.success(f"已记录审批反馈：{record['request_id']}")
+
+    with tab_email:
+        with st.form("email_report_form"):
+            recipient = st.text_input("HR 邮箱")
+            subject = st.text_input(
+                "邮件主题",
+                value=f"Agentic HR 批量候选人评估报告 - {batch_result.get('request_id')}",
+            )
+            send_clicked = st.form_submit_button("发送报告邮件")
+
+        if send_clicked:
+            delivery = send_report_email(
+                recipient=recipient,
+                subject=subject,
+                report_markdown=report_text,
+                attachment_name=Path(st.session_state["report_path"]).name,
+            )
+            if delivery.sent:
+                st.success(delivery.message)
+            else:
+                st.warning(delivery.message)
 
     with tab_detail:
         results = batch_result.get("results", [])

@@ -33,6 +33,19 @@ Start the local control cabin:
 D:\python\python.exe -m streamlit run app\streamlit_app.py
 ```
 
+Send batch reports from the control cabin by configuring SMTP environment variables:
+
+```powershell
+$env:HR_SMTP_HOST="smtp.example.com"
+$env:HR_SMTP_PORT="465"
+$env:HR_SMTP_USERNAME="your-email@example.com"
+$env:HR_SMTP_PASSWORD="your-smtp-app-password"
+$env:HR_SMTP_FROM="your-email@example.com"
+$env:HR_SMTP_USE_SSL="true"
+```
+
+If SMTP is not configured, the control cabin will keep the report available for preview and download without sending email.
+
 The current version is a walking skeleton with text-based PDF parsing and mock extraction/evaluation nodes. It runs end to end without LLMs, databases, or trained ML models.
 
 ## OCR for Scanned Resumes
