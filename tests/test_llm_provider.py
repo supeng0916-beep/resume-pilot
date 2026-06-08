@@ -5,6 +5,7 @@ from core.llm_provider import (
     build_report_enhancement_messages,
     generate_report_llm_enhancement,
     load_llm_config_from_env,
+    normalize_chat_completions_url,
 )
 
 
@@ -50,6 +51,18 @@ def test_load_llm_config_requires_enable_flag(monkeypatch) -> None:
     assert load_llm_config_from_env() is None
 
 
+def test_normalize_chat_completions_url_accepts_provider_roots() -> None:
+    assert normalize_chat_completions_url("https://api.deepseek.com") == (
+        "https://api.deepseek.com/chat/completions"
+    )
+    assert normalize_chat_completions_url("https://api.openai.com/v1") == (
+        "https://api.openai.com/v1/chat/completions"
+    )
+    assert normalize_chat_completions_url("https://api.example.com/v1/chat/completions") == (
+        "https://api.example.com/v1/chat/completions"
+    )
+
+
 def test_load_llm_config_reads_enabled_env(monkeypatch) -> None:
     monkeypatch.setenv("HR_LLM_ENABLED", "true")
     monkeypatch.setenv("HR_LLM_API_KEY", "secret")
@@ -61,6 +74,19 @@ def test_load_llm_config_reads_enabled_env(monkeypatch) -> None:
     assert config is not None
     assert config.model == "fake-model"
     assert config.base_url == "https://llm.example.com/v1/chat/completions"
+    assert config.ignore_proxy is True
+
+
+def test_load_llm_config_can_use_system_proxy(monkeypatch) -> None:
+    monkeypatch.setenv("HR_LLM_ENABLED", "true")
+    monkeypatch.setenv("HR_LLM_API_KEY", "secret")
+    monkeypatch.setenv("HR_LLM_MODEL", "fake-model")
+    monkeypatch.setenv("HR_LLM_IGNORE_PROXY", "false")
+
+    config = load_llm_config_from_env()
+
+    assert config is not None
+    assert config.ignore_proxy is False
 
 
 def test_build_report_enhancement_messages_include_report_context() -> None:

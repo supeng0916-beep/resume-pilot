@@ -84,7 +84,7 @@ def test_send_report_email_tool_skips_without_smtp_config(monkeypatch) -> None:
         "HR_SMTP_PASSWORD",
         "HR_SMTP_FROM",
     ]:
-        monkeypatch.delenv(key, raising=False)
+        monkeypatch.setenv(key, "")
 
     result = send_report_email_tool(
         recipient="hr@example.com",

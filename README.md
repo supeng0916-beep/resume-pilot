@@ -58,6 +58,7 @@ HR_LLM_API_KEY=your-api-key
 HR_LLM_MODEL=your-model-name
 HR_LLM_BASE_URL=https://api.openai.com/v1/chat/completions
 HR_LLM_TIMEOUT_SECONDS=30
+HR_LLM_IGNORE_PROXY=true
 ```
 
 `HR_LLM_BASE_URL` expects an OpenAI-compatible Chat Completions endpoint. If the LLM is disabled, missing config, or the request fails, the deterministic report is still generated.

@@ -6,6 +6,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from typing import Any, Protocol
+from urllib.parse import urlparse, urlunparse
 
 from dotenv import load_dotenv
 
@@ -21,6 +22,7 @@ class LLMConfig:
     model: str
     base_url: str = DEFAULT_OPENAI_COMPATIBLE_CHAT_URL
     timeout_seconds: float = 30.0
+    ignore_proxy: bool = True
 
 
 @dataclass(frozen=True)
@@ -46,7 +48,7 @@ class OpenAICompatibleChatClient:
             ensure_ascii=False,
         ).encode("utf-8")
         request = urllib.request.Request(
-            config.base_url,
+            normalize_chat_completions_url(config.base_url),
             data=payload,
             headers={
                 "Authorization": f"Bearer {config.api_key}",
@@ -55,8 +57,10 @@ class OpenAICompatibleChatClient:
             method="POST",
         )
 
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({})) if config.ignore_proxy else None
         try:
-            with urllib.request.urlopen(request, timeout=config.timeout_seconds) as response:
+            open_request = opener.open if opener is not None else urllib.request.urlopen
+            with open_request(request, timeout=config.timeout_seconds) as response:
                 response_payload = json.loads(response.read().decode("utf-8"))
         except urllib.error.URLError as exc:
             raise RuntimeError(f"LLM request failed: {exc}") from exc
@@ -71,6 +75,18 @@ class OpenAICompatibleChatClient:
         return content.strip()
 
 
+def normalize_chat_completions_url(base_url: str) -> str:
+    parsed = urlparse(base_url)
+    path = parsed.path.rstrip("/")
+    if path.endswith("/chat/completions"):
+        return base_url
+    if not path or path == "/v1":
+        path = f"{path}/chat/completions" if path else "/chat/completions"
+    else:
+        path = f"{path}/chat/completions"
+    return urlunparse(parsed._replace(path=path))
+
+
 def load_llm_config_from_env() -> LLMConfig | None:
     load_dotenv()
     enabled = os.getenv("HR_LLM_ENABLED", "false").lower() in {"1", "true", "yes"}
@@ -83,11 +99,13 @@ def load_llm_config_from_env() -> LLMConfig | None:
         return None
 
     timeout = float(os.getenv("HR_LLM_TIMEOUT_SECONDS", "30"))
+    ignore_proxy = os.getenv("HR_LLM_IGNORE_PROXY", "true").lower() not in {"0", "false", "no"}
     return LLMConfig(
         api_key=api_key,
         model=model,
-        base_url=os.getenv("HR_LLM_BASE_URL") or DEFAULT_OPENAI_COMPATIBLE_CHAT_URL,
+        base_url=normalize_chat_completions_url(os.getenv("HR_LLM_BASE_URL") or DEFAULT_OPENAI_COMPATIBLE_CHAT_URL),
         timeout_seconds=timeout,
+        ignore_proxy=ignore_proxy,
     )
 
 
