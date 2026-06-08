@@ -48,13 +48,24 @@ def main() -> None:
     if run_clicked:
         with st.spinner("正在解析简历并评估候选人..."):
             saved_paths = save_uploaded_resumes(uploaded_files, request_id=request_id)
+            progress_bar = st.progress(0)
+            status_box = st.empty()
+
+            def update_progress(index, total, resume, status):
+                current = min(index / max(total, 1), 1.0)
+                progress_bar.progress(current)
+                status_label = "正在处理" if status == "started" else "已完成"
+                status_box.info(f"{status_label} {index}/{total}: {Path(resume.resume_file_path or resume.candidate_id).name}")
+
             batch_result = run_batch_evaluation(
                 resume_inputs_from_paths(saved_paths),
                 jd_text=jd_text,
                 request_id=request_id,
                 feedback_memory_path=feedback_memory_path or None,
                 risk_model_path=risk_model_path or None,
+                progress_callback=update_progress,
             )
+            status_box.success(f"批量评估完成：{len(saved_paths)} 份简历")
             report_path = save_batch_report(batch_result, request_id=request_id)
             st.session_state["batch_result"] = batch_result
             st.session_state["report_path"] = str(report_path)

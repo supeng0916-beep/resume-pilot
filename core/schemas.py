@@ -19,6 +19,8 @@ class DocumentMeta(StrictBaseModel):
     parser: str = Field(min_length=1)
     needs_ocr: bool = False
     text_length: int = Field(ge=0)
+    parse_quality_score: float = Field(default=0.0, ge=0, le=1)
+    parse_quality_flags: list[str] = Field(default_factory=list)
 
 
 class EvidenceSpan(StrictBaseModel):

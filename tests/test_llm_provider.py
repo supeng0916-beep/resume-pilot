@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from core.llm_provider import (
     LLMConfig,
+    build_pdf_vision_messages,
     build_report_enhancement_messages,
+    extract_pdf_text_with_vision_llm,
     generate_report_llm_enhancement,
     load_llm_config_from_env,
     normalize_chat_completions_url,
@@ -14,6 +16,12 @@ class FakeChatClient:
         assert config.model == "fake-model"
         assert messages[0]["role"] == "system"
         return "### LLM 辅助摘要\n候选人需要进一步核实项目深度。"
+
+
+class FakeVisionClient:
+    def complete(self, *, messages, config) -> str:
+        assert messages[1]["content"][1]["type"] == "image_url"
+        return "姓名：王强\n本科\n项目经历：使用 Python 完成推荐系统。"
 
 
 class FailingChatClient:
@@ -94,6 +102,29 @@ def test_build_report_enhancement_messages_include_report_context() -> None:
 
     assert messages[0]["role"] == "system"
     assert "招聘评估报告" in messages[1]["content"]
+
+
+def test_build_pdf_vision_messages_uses_image_url_content() -> None:
+    messages = build_pdf_vision_messages(["data:image/png;base64,abc"])
+
+    assert messages[1]["content"][0]["type"] == "text"
+    assert messages[1]["content"][1]["image_url"]["url"] == "data:image/png;base64,abc"
+
+
+def test_extract_pdf_text_with_vision_llm_uses_rendered_pages(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "core.llm_provider.render_pdf_pages_as_data_urls",
+        lambda file_path, max_pages=3: ["data:image/png;base64,abc"],
+    )
+
+    result = extract_pdf_text_with_vision_llm(
+        "resume.pdf",
+        config=LLMConfig(api_key="secret", model="fake-model"),
+        client=FakeVisionClient(),
+    )
+
+    assert result.enabled is True
+    assert "王强" in result.content
 
 
 def test_generate_report_llm_enhancement_uses_client() -> None:

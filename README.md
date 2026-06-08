@@ -59,9 +59,11 @@ HR_LLM_MODEL=your-model-name
 HR_LLM_BASE_URL=https://api.openai.com/v1/chat/completions
 HR_LLM_TIMEOUT_SECONDS=30
 HR_LLM_IGNORE_PROXY=true
+HR_LLM_PDF_MAX_PAGES=3
+HR_OCR_TIMEOUT_SECONDS=12
 ```
 
-`HR_LLM_BASE_URL` expects an OpenAI-compatible Chat Completions endpoint. If the LLM is disabled, missing config, or the request fails, the deterministic report is still generated.
+`HR_LLM_BASE_URL` expects an OpenAI-compatible Chat Completions endpoint. If the LLM is disabled, missing config, or the request fails, the deterministic report is still generated. For image-only PDFs, OCR is attempted with `HR_OCR_TIMEOUT_SECONDS`; when OCR times out or produces low-quality text, the parser can fall back to the configured vision-capable LLM.
 
 ## HR Tools
 

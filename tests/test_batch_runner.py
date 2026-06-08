@@ -51,6 +51,30 @@ def test_run_batch_evaluation_ranks_candidates_and_builds_report() -> None:
     assert result["results"][0]["document_meta"]["parser"] == "provided_text"
 
 
+def test_run_batch_evaluation_reports_progress_events() -> None:
+    events = []
+    resumes = [
+        BatchResumeInput(
+            candidate_id="candidate-a",
+            resume_text="姓名：李明\n本科\n项目经历：使用 Python 完成数据分析。",
+        )
+    ]
+
+    run_batch_evaluation(
+        resumes,
+        jd_text="校招数据分析工程师，要求 Python。",
+        request_id="progress-test",
+        progress_callback=lambda index, total, resume, status: events.append(
+            (index, total, resume.candidate_id, status)
+        ),
+    )
+
+    assert events == [
+        (1, 1, "candidate-a", "started"),
+        (1, 1, "candidate-a", "completed"),
+    ]
+
+
 def test_batch_report_does_not_recommend_ocr_failed_candidates() -> None:
     summaries = [
         {

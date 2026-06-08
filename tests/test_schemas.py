@@ -57,6 +57,8 @@ def test_document_meta_tracks_ocr_need() -> None:
     )
 
     assert meta.needs_ocr is False
+    assert meta.parse_quality_score == 0.0
+    assert meta.parse_quality_flags == []
 
 
 def test_match_breakdown_score_bounds() -> None:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from harness.runner import run_evaluation
 
@@ -149,11 +149,14 @@ def run_batch_evaluation(
     request_id: str = "batch-run",
     feedback_memory_path: str | None = None,
     risk_model_path: str | None = None,
+    progress_callback: Callable[[int, int, BatchResumeInput, str], None] | None = None,
 ) -> dict[str, Any]:
     results: list[dict[str, Any]] = []
     summaries: list[dict[str, Any]] = []
 
     for index, resume in enumerate(resumes, start=1):
+        if progress_callback:
+            progress_callback(index, len(resumes), resume, "started")
         candidate_request_id = f"{request_id}-{index:03d}-{resume.candidate_id}"
         result = run_evaluation(
             resume_file_path=resume.resume_file_path,
@@ -165,6 +168,8 @@ def run_batch_evaluation(
         )
         results.append(result)
         summaries.append(_build_candidate_summary(resume.candidate_id, result))
+        if progress_callback:
+            progress_callback(index, len(resumes), resume, "completed")
 
     ranked_summaries = sorted(
         summaries,

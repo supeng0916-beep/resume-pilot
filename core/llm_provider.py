@@ -4,13 +4,20 @@ import json
 import os
 import urllib.error
 import urllib.request
+import base64
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlparse, urlunparse
 
 from dotenv import load_dotenv
 
 from core.state import WorkflowState
+
+try:
+    import fitz
+except ImportError:  # pragma: no cover - PyMuPDF is a project dependency.
+    fitz = None
 
 
 DEFAULT_OPENAI_COMPATIBLE_CHAT_URL = "https://api.openai.com/v1/chat/completions"
@@ -33,12 +40,12 @@ class LLMEnhancementResult:
 
 
 class ChatCompletionClient(Protocol):
-    def complete(self, *, messages: list[dict[str, str]], config: LLMConfig) -> str:
+    def complete(self, *, messages: list[dict[str, Any]], config: LLMConfig) -> str:
         ...
 
 
 class OpenAICompatibleChatClient:
-    def complete(self, *, messages: list[dict[str, str]], config: LLMConfig) -> str:
+    def complete(self, *, messages: list[dict[str, Any]], config: LLMConfig) -> str:
         payload = json.dumps(
             {
                 "model": config.model,
@@ -109,7 +116,7 @@ def load_llm_config_from_env() -> LLMConfig | None:
     )
 
 
-def build_report_enhancement_messages(state: WorkflowState, base_report: str) -> list[dict[str, str]]:
+def build_report_enhancement_messages(state: WorkflowState, base_report: str) -> list[dict[str, Any]]:
     candidate = state.get("candidate_profile") or {}
     job = state.get("job_profile") or {}
     match_breakdown = state.get("match_breakdown") or {}
@@ -177,4 +184,90 @@ def generate_report_llm_enhancement(
         enabled=True,
         content=content,
         provider_message="LLM 增强已生成。",
+    )
+
+
+def render_pdf_pages_as_data_urls(
+    file_path: str | Path,
+    *,
+    max_pages: int = 3,
+    dpi: int = 160,
+) -> list[str]:
+    if fitz is None:
+        raise RuntimeError("PyMuPDF is required to render PDF pages for vision LLM parsing.")
+
+    data_urls: list[str] = []
+    zoom = dpi / 72
+    matrix = fitz.Matrix(zoom, zoom)
+    with fitz.open(file_path) as document:
+        for page in list(document)[:max_pages]:
+            pixmap = page.get_pixmap(matrix=matrix, alpha=False)
+            image_base64 = base64.b64encode(pixmap.tobytes("png")).decode("ascii")
+            data_urls.append(f"data:image/png;base64,{image_base64}")
+    return data_urls
+
+
+def build_pdf_vision_messages(data_urls: list[str]) -> list[dict[str, Any]]:
+    content: list[dict[str, Any]] = [
+        {
+            "type": "text",
+            "text": (
+                "请从这些 PDF 页面截图中提取简历原文。尽量保持姓名、教育背景、技能、项目经历、"
+                "实习/工作经历、奖项证书等信息完整。只输出可用于结构化解析的纯文本，不要编造。"
+            ),
+        }
+    ]
+    for data_url in data_urls:
+        content.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": data_url},
+            }
+        )
+    return [
+        {
+            "role": "system",
+            "content": "你是严谨的简历 OCR/视觉解析助手，只能转写图片中可见内容。",
+        },
+        {
+            "role": "user",
+            "content": content,
+        },
+    ]
+
+
+def extract_pdf_text_with_vision_llm(
+    file_path: str | Path,
+    *,
+    config: LLMConfig | None = None,
+    client: ChatCompletionClient | None = None,
+    max_pages: int | None = None,
+) -> LLMEnhancementResult:
+    llm_config = config or load_llm_config_from_env()
+    if llm_config is None:
+        return LLMEnhancementResult(
+            enabled=False,
+            content="",
+            provider_message="Vision LLM 未启用或配置不完整。",
+        )
+
+    page_limit = max_pages or int(os.getenv("HR_LLM_PDF_MAX_PAGES", "3"))
+    chat_client = client or OpenAICompatibleChatClient()
+    try:
+        data_urls = render_pdf_pages_as_data_urls(file_path, max_pages=page_limit)
+        content = chat_client.complete(
+            messages=build_pdf_vision_messages(data_urls),
+            config=llm_config,
+        )
+    except Exception as exc:
+        return LLMEnhancementResult(
+            enabled=True,
+            content="",
+            provider_message=f"Vision LLM PDF 解析失败：{exc}",
+        )
+
+    return LLMEnhancementResult(
+        enabled=True,
+        content=content,
+        provider_message="Vision LLM PDF 解析已生成。",
     )

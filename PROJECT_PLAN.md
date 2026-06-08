@@ -954,10 +954,13 @@ Streamlit 控制舱能演示完整流程
 Tools 层封装 PDF 解析、结构化抽取、批量评估、报告保存和邮件发送
     ↓
 可选 LLM 报告增强层生成辅助摘要和面试追问
+    ↓
+图片型 PDF 支持 OCR 超时、解析质量评分、Vision LLM 辅助解析和控制舱进度条
 ```
 
 LLM 接入原则：不要一上来让 LLM 直接决定最终分数。更稳妥的顺序是：
 
 1. 已将 LLM 接到报告增强/面试问题生成节点，默认关闭，失败不影响确定性报告。
-2. 下一步再将 LLM 接到简历和 JD 结构化抽取节点，并继续保留 Pydantic 校验与 retry。
-3. 最后再考虑数据库、Docker、FastAPI、Redis 和并发能力。
+2. 已将 Vision LLM 作为图片型 PDF 解析的可选 fallback，OCR 低质量或超时时仍保留人工复核标记。
+3. 下一步再将 LLM 接到简历和 JD 结构化抽取节点，并继续保留 Pydantic 校验与 retry。
+4. 最后再考虑数据库、Docker、FastAPI、Redis 和并发能力。
