@@ -39,6 +39,10 @@ def parse_args() -> argparse.Namespace:
         help="Path for persisted human feedback memory. Defaults to memory/review_feedback.json.",
     )
     parser.add_argument(
+        "--risk-model-path",
+        help="Optional JSON risk model path. Falls back to rule-based risk scoring if omitted or missing.",
+    )
+    parser.add_argument(
         "--save-replay",
         action="store_true",
         help="Save this run as a replay case for regression testing.",
@@ -69,6 +73,7 @@ if __name__ == "__main__":
             human_feedback=args.human_feedback,
             persist_human_feedback=args.persist_human_feedback,
             feedback_memory_path=args.feedback_memory_path,
+            risk_model_path=args.risk_model_path,
             save_replay=args.save_replay,
             replay_dir=args.replay_dir,
         )

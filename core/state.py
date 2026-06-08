@@ -23,6 +23,9 @@ class WorkflowState(TypedDict, total=False):
 
     risk_score: float | None
     risk_factors: list[str]
+    risk_features: dict[str, Any] | None
+    risk_model_path: str | None
+    risk_model_used: str | None
 
     report: str | None
     human_decision: str | None

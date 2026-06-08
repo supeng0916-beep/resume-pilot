@@ -1,34 +1,54 @@
 from __future__ import annotations
 
-import re
-
+from core.risk_model import (
+    DEFAULT_RISK_MODEL_PATH,
+    build_model_risk_factors,
+    extract_risk_features,
+    extract_salary_number,
+    extract_salary_range,
+    load_risk_model,
+    predict_risk_score,
+)
 from core.state import WorkflowState
 from harness.trace import add_trace
 
 
-def _extract_salary_number(value: str | None) -> float | None:
-    if not value or value == "unknown":
+def _evaluate_with_model(state: WorkflowState) -> dict | None:
+    model_path = state.get("risk_model_path") or DEFAULT_RISK_MODEL_PATH
+    model = load_risk_model(model_path)
+    if model is None:
         return None
-    match = re.search(r"([\d.]+)\s*(k|K|万)?", value)
-    if not match:
-        return None
-    number = float(match.group(1))
-    unit = match.group(2)
-    if unit == "万":
-        return number * 10
-    return number
 
+    features = extract_risk_features(state)
+    risk_score = predict_risk_score(model, features)
+    risk_factors = build_model_risk_factors(features)
 
-def _extract_salary_range(value: str | None) -> tuple[float, float] | None:
-    if not value:
-        return None
-    match = re.search(r"([\d.]+)\s*k?\s*-\s*([\d.]+)\s*k?", value, re.IGNORECASE)
-    if not match:
-        return None
-    return float(match.group(1)), float(match.group(2))
+    return {
+        "risk_score": risk_score,
+        "risk_factors": risk_factors,
+        "risk_features": features,
+        "risk_model_used": "ml_logistic_json",
+        "risk_model_path": model_path,
+        "current_step": "risk_evaluator",
+        "trace": add_trace(
+            state,
+            "risk_evaluator",
+            f"Estimated ML risk score: {risk_score}.",
+            {
+                "risk_model_used": "ml_logistic_json",
+                "risk_model_path": model_path,
+                "risk_features": features,
+                "risk_factors": risk_factors,
+            },
+        ),
+    }
 
 
 def risk_evaluator_node(state: WorkflowState) -> WorkflowState:
+    model_result = _evaluate_with_model(state)
+    if model_result is not None:
+        return model_result
+
     match_score = state.get("match_score") or 0
     candidate = state.get("candidate_profile") or {}
     job = state.get("job_profile") or {}
@@ -36,8 +56,8 @@ def risk_evaluator_node(state: WorkflowState) -> WorkflowState:
     risk_score = 0.18 if match_score >= 85 else 0.30 if match_score >= 70 else 0.42
     risk_factors: list[str] = []
 
-    expected_salary = _extract_salary_number(candidate.get("expected_salary"))
-    salary_range = _extract_salary_range(job.get("salary_range"))
+    expected_salary = extract_salary_number(candidate.get("expected_salary"))
+    salary_range = extract_salary_range(job.get("salary_range"))
 
     if expected_salary is None:
         risk_score += 0.05
@@ -59,11 +79,13 @@ def risk_evaluator_node(state: WorkflowState) -> WorkflowState:
     return {
         "risk_score": risk_score,
         "risk_factors": risk_factors,
+        "risk_features": extract_risk_features(state),
+        "risk_model_used": "rule_based",
         "current_step": "risk_evaluator",
         "trace": add_trace(
             state,
             "risk_evaluator",
             f"Estimated rule-based risk score: {risk_score}.",
-            {"risk_factors": risk_factors},
+            {"risk_model_used": "rule_based", "risk_factors": risk_factors},
         ),
     }

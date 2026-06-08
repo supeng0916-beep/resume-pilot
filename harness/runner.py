@@ -15,6 +15,7 @@ def run_evaluation(
     human_feedback: str | None = None,
     persist_human_feedback: bool = False,
     feedback_memory_path: str | None = None,
+    risk_model_path: str | None = None,
     include_quality_check: bool = False,
     save_replay: bool = False,
     replay_dir: str | None = None,
@@ -36,6 +37,8 @@ def run_evaluation(
         initial_state["persist_human_feedback"] = True
     if feedback_memory_path is not None:
         initial_state["feedback_memory_path"] = feedback_memory_path
+    if risk_model_path is not None:
+        initial_state["risk_model_path"] = risk_model_path
 
     result = workflow.invoke(initial_state)
     if include_quality_check:
