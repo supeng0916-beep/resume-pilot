@@ -25,10 +25,10 @@ The current version is a walking skeleton with text-based PDF parsing and mock e
 
 ## OCR for Scanned Resumes
 
-Image-only PDF resumes are detected with `needs_ocr=True`. The parser has an optional PaddleOCR adapter:
+Image-only PDF resumes are detected with `needs_ocr=True`. The parser has optional local OCR adapters. EasyOCR is used first on the current Windows demo environment, with PaddleOCR kept as an additional provider:
 
 ```powershell
-python -m pip install paddleocr paddlepaddle
+python -m pip install -r requirements-ocr.txt
 ```
 
-When PaddleOCR is available, scanned PDFs can be rendered page by page and passed through local OCR. If OCR dependencies are not installed, the workflow keeps running and marks the candidate for OCR/manual review instead of ranking them as a reliable match.
+When OCR dependencies are available, scanned PDFs are rendered page by page and passed through local OCR. If OCR dependencies or model files are not available, the workflow keeps running and marks the candidate for OCR/manual review instead of ranking them as a reliable match.

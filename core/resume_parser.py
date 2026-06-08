@@ -7,6 +7,20 @@ from core.skills import SKILL_ALIASES, extract_known_skills
 
 
 EDUCATION_LEVELS = ["博士", "硕士", "本科", "大专", "高中"]
+NAME_SECTION_BLACKLIST = {
+    "基本信息",
+    "教育背景",
+    "实习经历",
+    "项目经历",
+    "项目经验",
+    "工作经历",
+    "校园经历",
+    "荣誉奖项",
+    "专业技能",
+    "技能证书",
+    "个人信息",
+    "混合检索",
+}
 
 
 def _extract_name(text: str) -> str:
@@ -17,7 +31,9 @@ def _extract_name(text: str) -> str:
     for pattern in patterns:
         match = re.search(pattern, text, re.MULTILINE)
         if match:
-            return match.group(1).strip(" 。,，")
+            name = match.group(1).strip(" 。,，")
+            if name not in NAME_SECTION_BLACKLIST:
+                return name
     return "未知候选人"
 
 

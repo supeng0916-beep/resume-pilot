@@ -18,6 +18,17 @@ def test_parse_resume_text_extracts_core_candidate_fields() -> None:
     assert profile.work_experiences
 
 
+def test_parse_resume_text_does_not_use_section_heading_as_name() -> None:
+    profile = parse_resume_text(
+        "基本信息\n"
+        "教育背景\n"
+        "本科\n"
+        "项目经历：使用 Python 完成机器学习项目。"
+    )
+
+    assert profile.name == "未知候选人"
+
+
 def test_parse_resume_text_supports_campus_style_resume() -> None:
     profile = parse_resume_text(
         "姓名：李四。本科，2026届应届生。校园项目：使用 Python 和 MySQL "

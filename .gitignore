@@ -18,5 +18,6 @@ models/*.json
 memory/review_feedback.json
 data/*.csv
 data/examples/*.pdf
+data/model_cache/
 data/replay_cases/
 data/test_outputs/

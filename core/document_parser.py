@@ -71,16 +71,19 @@ def parse_pdf(
     if use_ocr:
         provider = ocr_provider if ocr_provider is not None else get_default_ocr_provider()
     if provider is not None:
-        ocr_text = clean_extracted_text(provider.extract_text_from_pdf(path))
-        if ocr_text:
-            meta = DocumentMeta(
-                file_name=path.name,
-                page_count=page_count,
-                parser=f"pymupdf+{provider.name}",
-                needs_ocr=False,
-                text_length=len(ocr_text),
-            )
-            return ParsedDocument(text=ocr_text, meta=meta)
+        try:
+            ocr_text = clean_extracted_text(provider.extract_text_from_pdf(path))
+            if ocr_text:
+                meta = DocumentMeta(
+                    file_name=path.name,
+                    page_count=page_count,
+                    parser=f"pymupdf+{provider.name}",
+                    needs_ocr=False,
+                    text_length=len(ocr_text),
+                )
+                return ParsedDocument(text=ocr_text, meta=meta)
+        except Exception:
+            pass
 
     meta = DocumentMeta(
         file_name=path.name,
