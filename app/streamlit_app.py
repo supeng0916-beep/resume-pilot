@@ -12,6 +12,8 @@ if str(ROOT) not in sys.path:
 
 from app.control_cabin import (  # noqa: E402
     apply_human_review,
+    build_detail_summary,
+    build_evidence_rows,
     build_ranking_rows,
     candidates_needing_review,
     save_batch_report,
@@ -166,15 +168,64 @@ def main() -> None:
             candidate = result.get("candidate_profile") or {}
             request = result.get("request_id") or f"candidate-{index}"
             with st.expander(f"{candidate.get('name', '未知候选人')} - {request}"):
-                st.write(
-                    {
-                        "document_meta": result.get("document_meta"),
-                        "llm_extraction_status": result.get("llm_extraction_status"),
-                        "human_review_status": result.get("human_review_status"),
-                        "errors": result.get("errors"),
-                    }
+                summary = build_detail_summary(result)
+                metric_match, metric_risk, metric_quality, metric_review = st.columns(4)
+                metric_match.metric("匹配分", result.get("match_score"))
+                metric_risk.metric("风险分", result.get("risk_score"))
+                metric_quality.metric("解析质量", summary.get("解析质量"))
+                metric_review.metric("人工状态", result.get("human_review_status"))
+
+                detail_overview, detail_evidence, detail_report, detail_trace = st.tabs(
+                    ["概览", "证据", "报告", "Trace"]
                 )
-                st.markdown(result.get("report") or "")
+
+                with detail_overview:
+                    st.json(summary)
+                    errors = result.get("errors") or []
+                    if errors:
+                        st.warning("；".join(str(error) for error in errors))
+
+                    breakdown = result.get("match_breakdown") or {}
+                    dimension_scores = breakdown.get("dimension_scores") or {}
+                    if dimension_scores:
+                        st.caption("分项评分")
+                        st.dataframe(
+                            [
+                                {"维度": name, "分数": score}
+                                for name, score in dimension_scores.items()
+                            ],
+                            use_container_width=True,
+                            hide_index=True,
+                        )
+                    evidence_notes = breakdown.get("evidence_notes") or []
+                    if evidence_notes:
+                        st.caption("匹配依据")
+                        for note in evidence_notes:
+                            st.write(f"- {note}")
+
+                with detail_evidence:
+                    evidence_rows = build_evidence_rows(result)
+                    if evidence_rows:
+                        st.dataframe(evidence_rows, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("当前候选人暂无结构化证据片段。")
+
+                with detail_report:
+                    st.markdown(result.get("report") or "")
+
+                with detail_trace:
+                    trace_rows = [
+                        {
+                            "节点": item.get("node"),
+                            "摘要": item.get("output_summary"),
+                            "耗时/元信息": item.get("metadata"),
+                        }
+                        for item in result.get("trace", [])
+                    ]
+                    if trace_rows:
+                        st.dataframe(trace_rows, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("当前候选人暂无 trace 记录。")
 
 
 if __name__ == "__main__":

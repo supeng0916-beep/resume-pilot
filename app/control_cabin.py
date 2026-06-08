@@ -46,6 +46,8 @@ def save_uploaded_resumes(
 def build_ranking_rows(batch_result: dict[str, Any]) -> list[dict[str, Any]]:
     rows = []
     for rank, candidate in enumerate(batch_result.get("ranked_candidates", []), start=1):
+        llm_status = candidate.get("llm_extraction_status") or []
+        parse_quality = candidate.get("parse_quality_score")
         rows.append(
             {
                 "排名": rank,
@@ -57,6 +59,10 @@ def build_ranking_rows(batch_result: dict[str, Any]) -> list[dict[str, Any]]:
                 "匹配分": candidate.get("match_score"),
                 "风险分": candidate.get("risk_score"),
                 "证据置信度": candidate.get("evidence_confidence"),
+                "解析器": candidate.get("document_parser") or "unknown",
+                "解析质量": parse_quality if parse_quality is not None else "",
+                "质量标记": "; ".join(candidate.get("parse_quality_flags") or []),
+                "LLM抽取": "；".join(llm_status) if llm_status else "未启用/未记录",
                 "OCR复核": "是" if candidate.get("needs_ocr") else "否",
                 "人工状态": candidate.get("human_review_status"),
                 "匹配技能": ", ".join(candidate.get("matched_skills") or []),
@@ -64,6 +70,63 @@ def build_ranking_rows(batch_result: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+def build_evidence_rows(result: dict[str, Any]) -> list[dict[str, Any]]:
+    candidate = result.get("candidate_profile") or {}
+    rows = []
+    for item in candidate.get("skill_evidence") or []:
+        evidence = item.get("evidence") or []
+        if not evidence:
+            rows.append(
+                {
+                    "技能": item.get("skill"),
+                    "证据强度": item.get("evidence_strength"),
+                    "来源": "",
+                    "位置": "",
+                    "片段": "未找到可引用证据",
+                    "置信度": "",
+                }
+            )
+            continue
+        for span in evidence:
+            rows.append(
+                {
+                    "技能": item.get("skill"),
+                    "证据强度": item.get("evidence_strength"),
+                    "来源": span.get("source"),
+                    "位置": span.get("section"),
+                    "片段": span.get("text"),
+                    "置信度": span.get("confidence"),
+                }
+            )
+    return rows
+
+
+def build_detail_summary(result: dict[str, Any]) -> dict[str, Any]:
+    candidate = result.get("candidate_profile") or {}
+    job = result.get("job_profile") or {}
+    document_meta = result.get("document_meta") or {}
+    match_breakdown = result.get("match_breakdown") or {}
+    return {
+        "候选人": candidate.get("name"),
+        "候选类型": candidate.get("candidate_track"),
+        "类型判断": candidate.get("track_reason"),
+        "学历/专业": " / ".join(
+            str(value)
+            for value in [candidate.get("education"), candidate.get("major")]
+            if value
+        ),
+        "经验年限": candidate.get("years_experience"),
+        "岗位": job.get("title"),
+        "JD类型": job.get("recruitment_track"),
+        "解析器": document_meta.get("parser"),
+        "解析质量": document_meta.get("parse_quality_score"),
+        "解析标记": "; ".join(document_meta.get("parse_quality_flags") or []),
+        "LLM抽取状态": "；".join(result.get("llm_extraction_status") or []),
+        "匹配技能": ", ".join(match_breakdown.get("matched_skills") or []),
+        "人工状态": result.get("human_review_status"),
+    }
 
 
 def candidates_needing_review(batch_result: dict[str, Any]) -> list[dict[str, Any]]:

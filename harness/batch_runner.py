@@ -47,6 +47,7 @@ def _build_candidate_summary(candidate_id: str, result: dict[str, Any]) -> dict[
     match_breakdown = result.get("match_breakdown") or {}
     document_meta = result.get("document_meta") or {}
     needs_ocr = document_meta.get("needs_ocr", False)
+    llm_status = result.get("llm_extraction_status") or []
     evidence_confidence = _evidence_confidence(result)
     review_reasons = []
     if needs_ocr:
@@ -72,6 +73,10 @@ def _build_candidate_summary(candidate_id: str, result: dict[str, Any]) -> dict[
         "evidence_confidence": evidence_confidence,
         "matched_skills": match_breakdown.get("matched_skills", []),
         "human_review_status": result.get("human_review_status"),
+        "document_parser": document_meta.get("parser"),
+        "parse_quality_score": document_meta.get("parse_quality_score"),
+        "parse_quality_flags": document_meta.get("parse_quality_flags", []),
+        "llm_extraction_status": llm_status,
         "needs_ocr": needs_ocr,
         "review_reasons": review_reasons,
         "errors": result.get("errors", []),

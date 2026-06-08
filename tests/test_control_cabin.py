@@ -6,6 +6,8 @@ from pathlib import Path
 
 from app.control_cabin import (
     apply_human_review,
+    build_detail_summary,
+    build_evidence_rows,
     build_ranking_rows,
     candidates_needing_review,
     safe_uploaded_filename,
@@ -61,6 +63,10 @@ def test_build_ranking_rows_and_review_queue() -> None:
                 "evidence_confidence": 0.9,
                 "needs_ocr": False,
                 "human_review_status": "pending",
+                "document_parser": "pymupdf",
+                "parse_quality_score": 0.95,
+                "parse_quality_flags": [],
+                "llm_extraction_status": ["简历 LLM 结构化抽取成功。"],
                 "matched_skills": ["Python", "PyTorch"],
                 "review_reasons": [],
             },
@@ -75,6 +81,10 @@ def test_build_ranking_rows_and_review_queue() -> None:
                 "evidence_confidence": 0,
                 "needs_ocr": True,
                 "human_review_status": "pending",
+                "document_parser": "pymupdf+vision_llm",
+                "parse_quality_score": 0.45,
+                "parse_quality_flags": ["文本过短"],
+                "llm_extraction_status": [],
                 "matched_skills": [],
                 "review_reasons": ["PDF 需要 OCR"],
             },
@@ -87,8 +97,56 @@ def test_build_ranking_rows_and_review_queue() -> None:
     assert rows[0]["排名"] == 1
     assert rows[0]["请求ID"] == "batch-001-001-alice"
     assert rows[0]["匹配技能"] == "Python, PyTorch"
+    assert rows[0]["解析器"] == "pymupdf"
+    assert rows[0]["LLM抽取"] == "简历 LLM 结构化抽取成功。"
+    assert rows[1]["质量标记"] == "文本过短"
     assert rows[1]["OCR复核"] == "是"
     assert review_needed[0]["candidate_id"] == "scan"
+
+
+def test_build_detail_summary_and_evidence_rows() -> None:
+    result = {
+        "candidate_profile": {
+            "name": "Alice",
+            "candidate_track": "campus",
+            "track_reason": "应届生",
+            "education": "本科",
+            "major": "计算机",
+            "years_experience": 0,
+            "skill_evidence": [
+                {
+                    "skill": "Python",
+                    "evidence_strength": "strong",
+                    "evidence": [
+                        {
+                            "source": "resume",
+                            "section": "项目经历",
+                            "text": "使用 Python 完成推荐系统项目",
+                            "confidence": 0.9,
+                        }
+                    ],
+                }
+            ],
+        },
+        "job_profile": {"title": "校招 AI 工程师", "recruitment_track": "campus"},
+        "document_meta": {
+            "parser": "pymupdf",
+            "parse_quality_score": 0.98,
+            "parse_quality_flags": [],
+        },
+        "match_breakdown": {"matched_skills": ["Python"]},
+        "llm_extraction_status": ["JD LLM 结构化抽取成功。"],
+        "human_review_status": "pending_review",
+    }
+
+    summary = build_detail_summary(result)
+    rows = build_evidence_rows(result)
+
+    assert summary["候选人"] == "Alice"
+    assert summary["解析器"] == "pymupdf"
+    assert summary["LLM抽取状态"] == "JD LLM 结构化抽取成功。"
+    assert rows[0]["技能"] == "Python"
+    assert rows[0]["片段"] == "使用 Python 完成推荐系统项目"
 
 
 def test_save_batch_report_writes_markdown() -> None:
