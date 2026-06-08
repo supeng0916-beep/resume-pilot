@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from core.llm_provider import generate_report_llm_enhancement
 from core.report_builder import render_markdown_report
 from core.state import WorkflowState
 from harness.trace import add_trace
@@ -24,9 +25,17 @@ def report_writer_node(state: WorkflowState) -> WorkflowState:
         }
 
     report = render_markdown_report(state)
+    enhancement = generate_report_llm_enhancement(state, report)
+    output_summary = "Generated structured evaluation report."
+    if enhancement.content:
+        report = f"{report}\n\n## LLM 辅助增强\n{enhancement.content}"
+        output_summary = "Generated structured evaluation report with LLM enhancement."
+    elif enhancement.enabled:
+        output_summary = enhancement.provider_message
 
     return {
         "report": report,
         "current_step": "report_writer",
-        "trace": add_trace(state, "report_writer", "Generated structured evaluation report."),
+        "llm_enhancement_status": enhancement.provider_message,
+        "trace": add_trace(state, "report_writer", output_summary),
     }

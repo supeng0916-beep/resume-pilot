@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from core.llm_provider import LLMEnhancementResult
 from graph.workflow import build_workflow
 from harness.test_cases import sample_candidate_case
+from nodes.report_writer import report_writer_node
 
 
 def test_report_contains_structured_sections() -> None:
@@ -25,3 +27,21 @@ def test_report_includes_recommendation_and_interview_questions() -> None:
     assert "人工审批建议" in report
     assert "请候选人" in report
     assert result["candidate_profile"]["name"] in report
+
+
+def test_report_writer_appends_llm_enhancement_when_available(monkeypatch) -> None:
+    state = build_workflow().invoke(sample_candidate_case())
+
+    def fake_enhancement(state, report):
+        return LLMEnhancementResult(
+            enabled=True,
+            content="### LLM 辅助摘要\n建议追问项目贡献边界。",
+            provider_message="LLM 增强已生成。",
+        )
+
+    monkeypatch.setattr("nodes.report_writer.generate_report_llm_enhancement", fake_enhancement)
+    result = report_writer_node(state)
+
+    assert "## LLM 辅助增强" in result["report"]
+    assert "建议追问项目贡献边界" in result["report"]
+    assert result["llm_enhancement_status"] == "LLM 增强已生成。"

@@ -28,6 +28,7 @@ class WorkflowState(TypedDict, total=False):
     risk_model_used: str | None
 
     report: str | None
+    llm_enhancement_status: str | None
     human_decision: str | None
     human_feedback: str | None
     human_review_required: bool

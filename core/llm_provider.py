@@ -1,0 +1,162 @@
+from __future__ import annotations
+
+import json
+import os
+import urllib.error
+import urllib.request
+from dataclasses import dataclass
+from typing import Any, Protocol
+
+from dotenv import load_dotenv
+
+from core.state import WorkflowState
+
+
+DEFAULT_OPENAI_COMPATIBLE_CHAT_URL = "https://api.openai.com/v1/chat/completions"
+
+
+@dataclass(frozen=True)
+class LLMConfig:
+    api_key: str
+    model: str
+    base_url: str = DEFAULT_OPENAI_COMPATIBLE_CHAT_URL
+    timeout_seconds: float = 30.0
+
+
+@dataclass(frozen=True)
+class LLMEnhancementResult:
+    enabled: bool
+    content: str
+    provider_message: str
+
+
+class ChatCompletionClient(Protocol):
+    def complete(self, *, messages: list[dict[str, str]], config: LLMConfig) -> str:
+        ...
+
+
+class OpenAICompatibleChatClient:
+    def complete(self, *, messages: list[dict[str, str]], config: LLMConfig) -> str:
+        payload = json.dumps(
+            {
+                "model": config.model,
+                "messages": messages,
+                "temperature": 0.2,
+            },
+            ensure_ascii=False,
+        ).encode("utf-8")
+        request = urllib.request.Request(
+            config.base_url,
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {config.api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(request, timeout=config.timeout_seconds) as response:
+                response_payload = json.loads(response.read().decode("utf-8"))
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"LLM request failed: {exc}") from exc
+
+        choices = response_payload.get("choices") or []
+        if not choices:
+            raise RuntimeError("LLM response has no choices")
+        message = choices[0].get("message") or {}
+        content = message.get("content")
+        if not isinstance(content, str) or not content.strip():
+            raise RuntimeError("LLM response content is empty")
+        return content.strip()
+
+
+def load_llm_config_from_env() -> LLMConfig | None:
+    load_dotenv()
+    enabled = os.getenv("HR_LLM_ENABLED", "false").lower() in {"1", "true", "yes"}
+    if not enabled:
+        return None
+
+    api_key = os.getenv("HR_LLM_API_KEY") or os.getenv("OPENAI_API_KEY")
+    model = os.getenv("HR_LLM_MODEL")
+    if not api_key or not model:
+        return None
+
+    timeout = float(os.getenv("HR_LLM_TIMEOUT_SECONDS", "30"))
+    return LLMConfig(
+        api_key=api_key,
+        model=model,
+        base_url=os.getenv("HR_LLM_BASE_URL") or DEFAULT_OPENAI_COMPATIBLE_CHAT_URL,
+        timeout_seconds=timeout,
+    )
+
+
+def build_report_enhancement_messages(state: WorkflowState, base_report: str) -> list[dict[str, str]]:
+    candidate = state.get("candidate_profile") or {}
+    job = state.get("job_profile") or {}
+    match_breakdown = state.get("match_breakdown") or {}
+
+    user_content = {
+        "candidate": {
+            "name": candidate.get("name"),
+            "track": candidate.get("candidate_track"),
+            "skills": candidate.get("skills"),
+            "education": candidate.get("education"),
+            "years_experience": candidate.get("years_experience"),
+        },
+        "job": job,
+        "match_score": state.get("match_score"),
+        "risk_score": state.get("risk_score"),
+        "matched_skills": match_breakdown.get("matched_skills"),
+        "evidence_notes": match_breakdown.get("evidence_notes"),
+        "base_report": base_report,
+    }
+    return [
+        {
+            "role": "system",
+            "content": (
+                "你是谨慎的招聘评估助手。只能基于给定结构化信息和报告内容补充建议，"
+                "不得编造候选人没有提供的经历。输出中文 Markdown，包含三个小节："
+                "LLM 辅助摘要、建议追问、人工复核提醒。"
+            ),
+        },
+        {
+            "role": "user",
+            "content": json.dumps(user_content, ensure_ascii=False),
+        },
+    ]
+
+
+def generate_report_llm_enhancement(
+    state: WorkflowState,
+    base_report: str,
+    *,
+    config: LLMConfig | None = None,
+    client: ChatCompletionClient | None = None,
+) -> LLMEnhancementResult:
+    llm_config = config or load_llm_config_from_env()
+    if llm_config is None:
+        return LLMEnhancementResult(
+            enabled=False,
+            content="",
+            provider_message="LLM 未启用或配置不完整。",
+        )
+
+    chat_client = client or OpenAICompatibleChatClient()
+    try:
+        content = chat_client.complete(
+            messages=build_report_enhancement_messages(state, base_report),
+            config=llm_config,
+        )
+    except Exception as exc:
+        return LLMEnhancementResult(
+            enabled=True,
+            content="",
+            provider_message=f"LLM 增强失败，已保留确定性报告：{exc}",
+        )
+
+    return LLMEnhancementResult(
+        enabled=True,
+        content=content,
+        provider_message="LLM 增强已生成。",
+    )

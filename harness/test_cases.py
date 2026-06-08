@@ -27,6 +27,7 @@ def sample_candidate_case() -> WorkflowState:
         "risk_model_path": None,
         "risk_model_used": None,
         "report": None,
+        "llm_enhancement_status": None,
         "human_decision": None,
         "human_feedback": None,
         "human_review_required": False,

@@ -48,6 +48,20 @@ If SMTP is not configured, the control cabin will keep the report available for 
 
 The current version runs an end-to-end LangGraph HR evaluation workflow with batch ranking, OCR fallback, replay harness, human review, report export, a Streamlit control cabin, and optional email delivery. It still runs without a real LLM, database, or trained cloud model by default.
 
+## Optional LLM Enhancement
+
+The report writer can append an LLM-assisted summary and interview-question enhancement. It is disabled by default. Create a local `.env` file in the project root and keep it out of git:
+
+```powershell
+HR_LLM_ENABLED=true
+HR_LLM_API_KEY=your-api-key
+HR_LLM_MODEL=your-model-name
+HR_LLM_BASE_URL=https://api.openai.com/v1/chat/completions
+HR_LLM_TIMEOUT_SECONDS=30
+```
+
+`HR_LLM_BASE_URL` expects an OpenAI-compatible Chat Completions endpoint. If the LLM is disabled, missing config, or the request fails, the deterministic report is still generated.
+
 ## HR Tools
 
 Reusable tool adapters live in `tools/hr_tools.py`. They wrap existing capabilities so future LLM agents can call them through a stable tool boundary:
