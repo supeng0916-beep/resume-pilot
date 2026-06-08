@@ -42,6 +42,7 @@ def test_run_batch_evaluation_ranks_candidates_and_builds_report() -> None:
 
     assert result["candidate_count"] == 2
     assert result["ranked_candidates"][0]["candidate_id"] == "backend-strong"
+    assert result["ranked_candidates"][0]["request_id"].startswith("batch-test-")
     assert result["ranked_candidates"][0]["rank_score"] > result["ranked_candidates"][1]["rank_score"]
     assert "批量候选人评估汇总" in result["batch_report"]
     assert "候选人排名" in result["batch_report"]

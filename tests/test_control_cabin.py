@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
 from app.control_cabin import (
+    apply_human_review,
     build_ranking_rows,
     candidates_needing_review,
     safe_uploaded_filename,
@@ -50,6 +52,7 @@ def test_build_ranking_rows_and_review_queue() -> None:
         "ranked_candidates": [
             {
                 "candidate_id": "alice",
+                "request_id": "batch-001-001-alice",
                 "name": "Alice",
                 "track": "campus",
                 "rank_score": 81.2,
@@ -63,6 +66,7 @@ def test_build_ranking_rows_and_review_queue() -> None:
             },
             {
                 "candidate_id": "scan",
+                "request_id": "batch-001-002-scan",
                 "name": "未知候选人",
                 "track": "unknown",
                 "rank_score": 0,
@@ -81,6 +85,7 @@ def test_build_ranking_rows_and_review_queue() -> None:
     review_needed = candidates_needing_review(batch_result)
 
     assert rows[0]["排名"] == 1
+    assert rows[0]["请求ID"] == "batch-001-001-alice"
     assert rows[0]["匹配技能"] == "Python, PyTorch"
     assert rows[1]["OCR复核"] == "是"
     assert review_needed[0]["candidate_id"] == "scan"
@@ -101,3 +106,42 @@ def test_save_batch_report_writes_markdown() -> None:
         import shutil
 
         shutil.rmtree(report_dir, ignore_errors=True)
+
+
+def test_apply_human_review_persists_feedback_and_updates_status() -> None:
+    memory_path = Path("data/test_outputs/control_cabin_feedback_test.json")
+    batch_result = {
+        "ranked_candidates": [
+            {
+                "candidate_id": "alice",
+                "request_id": "batch-001-001-alice",
+                "name": "Alice",
+                "human_review_status": "pending_review",
+            }
+        ],
+        "results": [
+            {
+                "request_id": "batch-001-001-alice",
+                "jd_text": "招聘 Python 工程师",
+                "job_profile": {"title": "Python 工程师", "recruitment_track": "campus"},
+                "candidate_profile": {"candidate_track": "campus", "track_confidence": 0.8},
+                "scoring_rubric": {"track": "campus"},
+                "match_score": 82,
+                "risk_score": 0.12,
+            }
+        ],
+    }
+
+    record = apply_human_review(
+        batch_result,
+        request_id="batch-001-001-alice",
+        decision="approve",
+        feedback="项目经历匹配，进入技术面。",
+        feedback_memory_path=memory_path,
+    )
+
+    records = json.loads(memory_path.read_text(encoding="utf-8"))
+    assert record == records[-1]
+    assert record["human_review"]["decision"] == "approve"
+    assert batch_result["results"][0]["human_review_status"] == "reviewed_approve"
+    assert batch_result["ranked_candidates"][0]["human_review_status"] == "reviewed_approve"

@@ -59,6 +59,7 @@ def _build_candidate_summary(candidate_id: str, result: dict[str, Any]) -> dict[
 
     return {
         "candidate_id": candidate_id,
+        "request_id": result.get("request_id"),
         "name": candidate.get("name", "未知候选人"),
         "track": candidate.get("candidate_track", "unknown"),
         "match_score": result.get("match_score"),

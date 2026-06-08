@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.control_cabin import (  # noqa: E402
+    apply_human_review,
     build_ranking_rows,
     candidates_needing_review,
     save_batch_report,
@@ -91,6 +92,33 @@ def main() -> None:
                 f"{candidate.get('name')}（{candidate.get('candidate_id')}）："
                 f"{'; '.join(candidate.get('review_reasons') or ['需人工确认'])}"
             )
+
+        st.divider()
+        candidate_options = {
+            f"{item.get('name')}（{item.get('candidate_id')}）": item.get("request_id")
+            for item in batch_result.get("ranked_candidates", [])
+            if item.get("request_id")
+        }
+        if candidate_options:
+            with st.form("human_review_form"):
+                selected_label = st.selectbox("审批候选人", options=list(candidate_options))
+                decision = st.selectbox(
+                    "审批结果",
+                    options=["approve", "reject", "revise", "need_more_info"],
+                )
+                feedback = st.text_area("审批反馈", height=100)
+                submitted = st.form_submit_button("记录审批反馈")
+
+            if submitted:
+                record = apply_human_review(
+                    batch_result,
+                    request_id=candidate_options[selected_label],
+                    decision=decision,
+                    feedback=feedback,
+                    feedback_memory_path=feedback_memory_path or None,
+                )
+                st.session_state["batch_result"] = batch_result
+                st.success(f"已记录审批反馈：{record['request_id']}")
 
     with tab_detail:
         results = batch_result.get("results", [])
