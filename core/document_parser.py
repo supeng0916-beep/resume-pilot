@@ -5,6 +5,7 @@ from pathlib import Path
 
 import fitz
 
+from core.ocr import OCRProvider, get_default_ocr_provider
 from core.schemas import DocumentMeta
 
 
@@ -35,7 +36,12 @@ def clean_extracted_text(text: str) -> str:
     return "\n".join(cleaned_lines).strip()
 
 
-def parse_pdf(file_path: str | Path) -> ParsedDocument:
+def parse_pdf(
+    file_path: str | Path,
+    *,
+    ocr_provider: OCRProvider | None = None,
+    use_ocr: bool = True,
+) -> ParsedDocument:
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"PDF file does not exist: {path}")
@@ -49,13 +55,40 @@ def parse_pdf(file_path: str | Path) -> ParsedDocument:
 
         raw_text = "\n".join(page_texts)
         cleaned_text = clean_extracted_text(raw_text)
+        page_count = document.page_count
+
+    if len(cleaned_text) >= MIN_TEXT_LENGTH_FOR_TEXT_PDF:
         meta = DocumentMeta(
             file_name=path.name,
-            page_count=document.page_count,
+            page_count=page_count,
             parser="pymupdf",
-            needs_ocr=len(cleaned_text) < MIN_TEXT_LENGTH_FOR_TEXT_PDF,
+            needs_ocr=False,
             text_length=len(cleaned_text),
         )
+        return ParsedDocument(text=cleaned_text, meta=meta)
+
+    provider = None
+    if use_ocr:
+        provider = ocr_provider if ocr_provider is not None else get_default_ocr_provider()
+    if provider is not None:
+        ocr_text = clean_extracted_text(provider.extract_text_from_pdf(path))
+        if ocr_text:
+            meta = DocumentMeta(
+                file_name=path.name,
+                page_count=page_count,
+                parser=f"pymupdf+{provider.name}",
+                needs_ocr=False,
+                text_length=len(ocr_text),
+            )
+            return ParsedDocument(text=ocr_text, meta=meta)
+
+    meta = DocumentMeta(
+        file_name=path.name,
+        page_count=page_count,
+        parser="pymupdf",
+        needs_ocr=True,
+        text_length=len(cleaned_text),
+    )
 
     return ParsedDocument(text=cleaned_text, meta=meta)
 
