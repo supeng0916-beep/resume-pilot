@@ -123,7 +123,7 @@ Train the lightweight manual-review risk model:
 D:\python\python.exe scripts\train_review_risk_model.py --dataset-dir data\datasets --output models\review_risk_model.json --model-card models\model_card_review_risk.md
 ```
 
-The model predicts whether a case needs human review. It is a process-risk model, not a hiring prediction model. Use it in CLI or the control cabin by setting the risk model path to `models\review_risk_model.json`.
+The repository includes a demo `models\review_risk_model.json` trained on the 500-row synthetic dataset, plus `models\model_card_review_risk.md`. The model predicts whether a case needs human review. It is a process-risk model, not a hiring prediction model. Use it in CLI or the control cabin by setting the risk model path to `models\review_risk_model.json`.
 
 The risk node supports two JSON model families:
 

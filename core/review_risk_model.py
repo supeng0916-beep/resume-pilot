@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import re
+import random
 from datetime import datetime, timezone
 from typing import Any
 
@@ -151,6 +152,31 @@ def build_review_risk_rows(
     return rows
 
 
+def split_train_validation(
+    rows: list[dict[str, Any]],
+    *,
+    validation_ratio: float = 0.2,
+    seed: int = 42,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    rng = random.Random(seed)
+    positives = [row for row in rows if float(row["label"]) >= 0.5]
+    negatives = [row for row in rows if float(row["label"]) < 0.5]
+    rng.shuffle(positives)
+    rng.shuffle(negatives)
+
+    def split_group(group: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        validation_count = max(1, round(len(group) * validation_ratio)) if group else 0
+        return group[validation_count:], group[:validation_count]
+
+    positive_train, positive_validation = split_group(positives)
+    negative_train, negative_validation = split_group(negatives)
+    train = [*positive_train, *negative_train]
+    validation = [*positive_validation, *negative_validation]
+    rng.shuffle(train)
+    rng.shuffle(validation)
+    return train, validation
+
+
 def _sigmoid(value: float) -> float:
     return 1.0 / (1.0 + math.exp(-value))
 
@@ -230,6 +256,10 @@ def evaluate_classifier(model: dict[str, Any], rows: list[dict[str, Any]], *, th
 
 def render_model_card(model: dict[str, Any], metrics: dict[str, float]) -> str:
     weights = model.get("weights") or {}
+    evaluation = model.get("evaluation") or {}
+    validation_rows = (evaluation.get("validation") or metrics).get("rows")
+    if isinstance(validation_rows, float) and validation_rows.is_integer():
+        validation_rows = int(validation_rows)
     weight_lines = [
         f"- `{name}`: {weights.get(name, 0.0)}"
         for name in model.get("feature_order") or REVIEW_RISK_FEATURES
@@ -249,7 +279,8 @@ def render_model_card(model: dict[str, Any], metrics: dict[str, float]) -> str:
             "",
             "## 训练数据",
             "",
-            f"- Rows: {model.get('training', {}).get('rows')}",
+            f"- Training rows: {model.get('training', {}).get('rows')}",
+            f"- Validation rows: {validation_rows}",
             f"- Data source: {model.get('training', {}).get('data_source')}",
             "",
             "## 指标",

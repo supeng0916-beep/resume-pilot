@@ -6,6 +6,7 @@ from core.review_risk_model import (
     evaluate_classifier,
     predict_review_risk_score,
     render_model_card,
+    split_train_validation,
     train_review_risk_model,
 )
 
@@ -40,6 +41,21 @@ def test_train_review_risk_model_returns_predictable_json_model() -> None:
     assert model["target"] == "needs_human_review"
     assert model["training"]["rows"] == 30
     assert 0.0 <= score <= 1.0
+
+
+def test_split_train_validation_is_reproducible_and_stratified_enough() -> None:
+    dataset = generate_synthetic_dataset(count=120, seed=15)
+    rows = build_review_risk_rows(dataset.candidates, dataset.jobs, dataset.labels)
+
+    first_train, first_validation = split_train_validation(rows, validation_ratio=0.2, seed=3)
+    second_train, second_validation = split_train_validation(rows, validation_ratio=0.2, seed=3)
+
+    assert first_train == second_train
+    assert first_validation == second_validation
+    assert len(first_train) == 96
+    assert len(first_validation) == 24
+    assert {row["label"] for row in first_train} == {0.0, 1.0}
+    assert {row["label"] for row in first_validation} == {0.0, 1.0}
 
 
 def test_evaluate_classifier_and_model_card_include_landing_disclaimer() -> None:

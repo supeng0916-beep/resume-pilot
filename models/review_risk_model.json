@@ -1,0 +1,51 @@
+{
+  "model_type": "review_risk_logistic_v1",
+  "target": "needs_human_review",
+  "feature_order": [
+    "required_skill_coverage",
+    "parse_quality_gap",
+    "salary_pressure",
+    "experience_gap",
+    "evidence_gap",
+    "track_unknown",
+    "weak_match"
+  ],
+  "bias": -3.485864,
+  "weights": {
+    "required_skill_coverage": -1.826669,
+    "parse_quality_gap": -0.185618,
+    "salary_pressure": 7.802718,
+    "experience_gap": 11.490862,
+    "evidence_gap": 7.92004,
+    "track_unknown": 7.612098,
+    "weak_match": 7.37619
+  },
+  "training": {
+    "rows": 400,
+    "epochs": 80,
+    "learning_rate": 0.06,
+    "trained_at": "2026-06-09T09:20:26.911216+00:00",
+    "data_source": "synthetic_or_annotated_jsonl",
+    "disclaimer": "Predicts manual-review need only; not a hiring decision model."
+  },
+  "evaluation": {
+    "train": {
+      "accuracy": 0.9725,
+      "precision": 0.9841,
+      "recall": 0.9724,
+      "f1": 0.9782,
+      "positive_rate": 0.635,
+      "threshold": 0.5,
+      "rows": 400.0
+    },
+    "validation": {
+      "accuracy": 0.92,
+      "precision": 0.9825,
+      "recall": 0.8889,
+      "f1": 0.9333,
+      "positive_rate": 0.63,
+      "threshold": 0.5,
+      "rows": 100.0
+    }
+  }
+}
