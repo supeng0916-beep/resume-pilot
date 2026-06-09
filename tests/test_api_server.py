@@ -41,6 +41,20 @@ def test_api_health_returns_storage_status(tmp_path) -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_api_prefixed_health_returns_json_when_react_dist_is_served(tmp_path) -> None:
+    dist_dir = tmp_path / "dist"
+    dist_dir.mkdir()
+    (dist_dir / "index.html").write_text("<!doctype html><div id=\"root\"></div>", encoding="utf-8")
+    app = create_app(store=SQLiteRunStore(tmp_path / "runs.db"), frontend_dist=dist_dir)
+    client = TestClient(app)
+
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
+    assert response.json() == {"status": "ok", "storage": "sqlite"}
+
+
 def test_api_serves_react_dist_when_available(tmp_path) -> None:
     dist_dir = tmp_path / "dist"
     dist_dir.mkdir()
@@ -205,6 +219,45 @@ def test_api_sends_persisted_report_email_and_records_delivery(tmp_path, monkeyp
     deliveries = client.get("/emails/deliveries").json()["deliveries"]
     assert deliveries[0]["recipient"] == "hr@example.com"
     assert deliveries[0]["message"] == "sent for test"
+
+
+def test_api_report_email_default_subject_is_readable_chinese(tmp_path, monkeypatch) -> None:
+    store = SQLiteRunStore(tmp_path / "runs.db")
+    store.save_workflow_result(
+        {
+            "request_id": "email-default-subject-001",
+            "current_step": "human_review",
+            "match_score": 88,
+            "risk_score": 0.2,
+            "human_review_status": "pending",
+            "trace": [],
+            "report": "# Email report",
+        }
+    )
+    captured: dict[str, str] = {}
+
+    def fake_send_report_email(**kwargs):
+        class Result:
+            sent = True
+            message = "sent for test"
+
+        captured["subject"] = kwargs["subject"]
+        return Result()
+
+    monkeypatch.setattr("api.server.send_report_email", fake_send_report_email)
+    app = create_app(store=store)
+    client = TestClient(app)
+
+    response = client.post(
+        "/emails/report",
+        json={
+            "request_id": "email-default-subject-001",
+            "recipient": "hr@example.com",
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["subject"] == "Agentic HR 候选人评估报告 - email-default-subject-001"
 
 
 def test_api_rejects_email_without_report_content(tmp_path) -> None:

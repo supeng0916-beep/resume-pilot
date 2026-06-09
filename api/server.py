@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -70,6 +70,15 @@ def create_app(
     upload_root = Path(upload_dir)
     frontend_root = Path(frontend_dist)
     app = FastAPI(title="Agentic HR API", version="0.1.0")
+
+    @app.middleware("http")
+    async def strip_api_prefix(request: Request, call_next):
+        path = request.scope.get("path", "")
+        if path.startswith("/api/"):
+            rewritten_path = path.removeprefix("/api") or "/"
+            request.scope["path"] = rewritten_path
+            request.scope["raw_path"] = rewritten_path.encode("utf-8")
+        return await call_next(request)
 
     @app.get("/health")
     def health() -> dict[str, str]:

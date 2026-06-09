@@ -42,7 +42,28 @@ def test_send_report_email_skips_when_smtp_config_missing(monkeypatch) -> None:
     )
 
     assert result.sent is False
-    assert "SMTP 配置不完整" in result.message
+    assert result.message == "SMTP 配置不完整，未发送邮件。"
+
+
+def test_send_report_email_skips_when_recipient_is_empty() -> None:
+    config = SmtpConfig(
+        host="smtp.example.com",
+        port=465,
+        username="system@example.com",
+        password="secret",
+        sender="system@example.com",
+    )
+
+    result = send_report_email(
+        recipient=" ",
+        subject="报告",
+        report_markdown="# 批量候选人评估汇总",
+        config=config,
+        smtp_factory=FakeSmtp,
+    )
+
+    assert result.sent is False
+    assert result.message == "收件人为空，未发送邮件。"
 
 
 def test_build_report_email_adds_markdown_attachment() -> None:
@@ -80,5 +101,6 @@ def test_send_report_email_uses_smtp_client() -> None:
     )
 
     assert result.sent is True
+    assert result.message == "已发送报告到 hr@example.com。"
     assert FakeSmtp.login_calls == [("system@example.com", "secret")]
     assert FakeSmtp.sent_messages[0]["To"] == "hr@example.com"
