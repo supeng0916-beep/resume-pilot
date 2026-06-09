@@ -201,6 +201,75 @@ h2 {
   overflow-x: auto;
 }
 
+.run-detail {
+  display: grid;
+  gap: 16px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.detail-grid div {
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: var(--color-panel);
+}
+
+.detail-grid dt {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.detail-grid dd {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.timeline {
+  display: grid;
+  gap: 8px;
+}
+
+.timeline-item {
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: var(--color-panel);
+}
+
+.timeline-item span {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.timeline-item p,
+.empty {
+  margin: 8px 0 0;
+}
+
+.report-preview {
+  min-height: 160px;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: var(--color-panel);
+  color: var(--color-ink);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
