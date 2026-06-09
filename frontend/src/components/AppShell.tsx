@@ -1,4 +1,4 @@
-import { Activity } from "lucide-react";
+import { Activity, BriefcaseBusiness } from "lucide-react";
 import type { ReactNode } from "react";
 import type { HealthResponse } from "../api/types";
 
@@ -12,21 +12,24 @@ export function AppShell({ health, children }: AppShellProps) {
     <main className="app-shell">
       <header className="top-bar">
         <div className="top-bar__inner">
-          <span className="brand">Agentic HR</span>
+          <span className="brand">
+            <BriefcaseBusiness size={16} />
+            Agentic HR 招聘评估
+          </span>
           <span className={health?.status === "ok" ? "health health--ok" : "health"}>
             <Activity size={14} />
-            {health?.status ?? "checking"}
+            {health?.status === "ok" ? "服务在线" : "连接中"}
           </span>
         </div>
       </header>
       <nav className="sub-nav">
         <div className="sub-nav__inner">
-          <strong>React 控制舱</strong>
+          <strong>招聘团队工作台</strong>
           <div className="sub-nav__links">
-            <a href="#batches">批次归档</a>
-            <a href="#runs">运行记录</a>
-            <a href="#reviews">人工复核</a>
-            <a href="#trace">Trace</a>
+            <a href="#batches">评估批次</a>
+            <a href="#runs">候选人记录</a>
+            <a href="#new-batch">创建评估</a>
+            <a href="#reviews">复核队列</a>
           </div>
         </div>
       </nav>

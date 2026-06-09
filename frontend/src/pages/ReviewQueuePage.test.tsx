@@ -14,7 +14,7 @@ describe("ReviewQueuePage", () => {
 
     fireEvent.change(screen.getByLabelText("复核结论"), { target: { value: "approve" } });
     fireEvent.change(screen.getByLabelText("复核反馈"), { target: { value: "Evidence checked." } });
-    fireEvent.click(screen.getByRole("button", { name: "保存复核" }));
+    fireEvent.click(screen.getByRole("button", { name: "提交复核结论" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit).toHaveBeenCalledWith("review-001", {

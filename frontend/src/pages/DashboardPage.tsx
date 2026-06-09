@@ -1,4 +1,4 @@
-import { Database, GitBranch, Layers3, ShieldCheck } from "lucide-react";
+import { BriefcaseBusiness, Database, Layers3, ShieldCheck } from "lucide-react";
 import type { BatchSummary, HealthResponse, WorkflowRun } from "../api/types";
 import { MetricTile } from "../components/MetricTile";
 import { StatusChip } from "../components/StatusChip";
@@ -12,33 +12,45 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({ health, runs, batches, error, onSelectRun }: DashboardPageProps) {
+  const pendingReviewCount = runs.filter((run) => run.human_review_status === "pending").length;
+  const averageMatchScore =
+    runs.length === 0
+      ? "-"
+      : Math.round(
+          runs.reduce((total, run) => total + Number(run.match_score ?? 0), 0) / Math.max(runs.length, 1)
+        );
+
   return (
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Primary frontend</p>
-          <h1>招聘评估控制舱</h1>
+          <p className="eyebrow">招聘官工作台</p>
+          <h1>招聘评估工作台</h1>
+          <p className="page-subtitle">集中查看候选人批次、AI 初筛结果、风险提示和人工复核队列。</p>
         </div>
-        <a className="button-primary" href="#new-batch">新建批量评估</a>
+        <a className="button-primary" href="#new-batch">创建评估批次</a>
       </div>
 
       {error ? <div className="alert">{error}</div> : null}
 
       <section className="metric-grid" aria-label="Run metrics">
-        <MetricTile icon={<Database size={18} />} label="已持久化运行" value={runs.length} />
+        <MetricTile icon={<BriefcaseBusiness size={18} />} label="候选人记录" value={runs.length} />
         <MetricTile
           icon={<ShieldCheck size={18} />}
-          label="待人工复核"
-          value={runs.filter((run) => run.human_review_status === "pending").length}
+          label="今日待复核"
+          value={pendingReviewCount}
         />
-        <MetricTile icon={<Layers3 size={18} />} label="批量评估批次" value={batches.length} />
-        <MetricTile icon={<GitBranch size={18} />} label="后端存储" value={health?.storage ?? "sqlite"} />
+        <MetricTile icon={<Layers3 size={18} />} label="候选人批次" value={batches.length} />
+        <MetricTile icon={<Database size={18} />} label="平均匹配分" value={averageMatchScore} />
       </section>
 
       <section className="panel" id="batches">
         <div className="panel__header">
-          <h2>最近批次</h2>
-          <StatusChip>SQLite 批次归档</StatusChip>
+          <div>
+            <h2>最近评估批次</h2>
+            <p>按批次追踪岗位评估进度，快速进入 Top 候选人详情。</p>
+          </div>
+          <StatusChip>{health?.storage === "sqlite" ? "本地归档" : "已连接后端"}</StatusChip>
         </div>
         <div className="table-wrap">
           <table>
@@ -46,14 +58,14 @@ export function DashboardPage({ health, runs, batches, error, onSelectRun }: Das
               <tr>
                 <th>批次 ID</th>
                 <th>候选人数</th>
-                <th>Top 候选人</th>
-                <th>更新时间</th>
+                <th>优先查看</th>
+                <th>最近更新</th>
               </tr>
             </thead>
             <tbody>
               {batches.length === 0 ? (
                 <tr>
-                  <td colSpan={4}>暂无批量评估批次。完成一次批量上传后，这里会显示批次归档。</td>
+                  <td colSpan={4}>暂无评估批次。创建一次批量评估后，这里会显示候选人批次。</td>
                 </tr>
               ) : (
                 batches.map((batch) => (
@@ -84,15 +96,18 @@ export function DashboardPage({ health, runs, batches, error, onSelectRun }: Das
 
       <section className="panel" id="runs">
         <div className="panel__header">
-          <h2>最近运行</h2>
-          <StatusChip>FastAPI 驱动</StatusChip>
+          <div>
+            <h2>候选人评估记录</h2>
+            <p>查看每位候选人的匹配分、风险分和复核状态。</p>
+          </div>
+          <StatusChip>AI 初筛结果</StatusChip>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>请求 ID</th>
-                <th>当前步骤</th>
+                <th>候选人记录</th>
+                <th>流程阶段</th>
                 <th>匹配分</th>
                 <th>风险分</th>
                 <th>复核状态</th>

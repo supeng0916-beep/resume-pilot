@@ -5,7 +5,7 @@
 body {
   margin: 0;
   color: var(--color-ink);
-  background: var(--color-parchment);
+  background: #f2f4f7;
   font-family: var(--font-ui);
 }
 
@@ -16,13 +16,13 @@ a {
 
 .app-shell {
   min-height: 100vh;
-  background: var(--color-parchment);
+  background: #f2f4f7;
 }
 
 .top-bar {
-  height: 44px;
+  height: 48px;
   color: #ffffff;
-  background: var(--color-dark);
+  background: #162033;
 }
 
 .top-bar__inner,
@@ -42,6 +42,9 @@ a {
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   font-weight: 600;
 }
@@ -67,9 +70,9 @@ a {
   position: sticky;
   top: 0;
   z-index: 10;
-  height: 56px;
+  height: 52px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  background: rgba(245, 245, 247, 0.86);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: saturate(180%) blur(20px);
 }
 
@@ -81,15 +84,15 @@ a {
 }
 
 .workspace {
-  padding: 24px;
+  padding: 22px 24px 32px;
 }
 
 .page-heading {
   display: flex;
-  align-items: end;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
 
 .eyebrow {
@@ -108,13 +111,21 @@ h2 {
 }
 
 h1 {
-  font-size: 34px;
+  font-size: 30px;
   line-height: 1.16;
 }
 
 h2 {
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.32;
+}
+
+.page-subtitle {
+  max-width: 620px;
+  margin: 8px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 .button-primary {
@@ -123,7 +134,7 @@ h2 {
   justify-content: center;
   min-height: 38px;
   border: 0;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   padding: 9px 18px;
   color: #ffffff;
   background: var(--color-primary);
@@ -137,7 +148,7 @@ h2 {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--color-primary);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   padding: 9px 18px;
   color: var(--color-primary);
   background: var(--color-canvas);
@@ -180,7 +191,7 @@ h2 {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -196,7 +207,8 @@ h2 {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 8px 10px;
-  padding: 16px;
+  min-height: 108px;
+  padding: 15px;
 }
 
 .metric-tile span {
@@ -206,7 +218,7 @@ h2 {
 
 .metric-tile strong {
   grid-column: 1 / -1;
-  font-size: 26px;
+  font-size: 28px;
   line-height: 1.1;
 }
 
@@ -217,10 +229,17 @@ h2 {
 
 .panel__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.panel__header p {
+  margin: 5px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .status-chip {
@@ -424,7 +443,7 @@ table {
 th,
 td {
   border-top: 1px solid var(--color-divider);
-  padding: 10px 8px;
+  padding: 11px 8px;
   text-align: left;
   white-space: nowrap;
 }
@@ -454,5 +473,11 @@ th {
 
   .upload-form {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

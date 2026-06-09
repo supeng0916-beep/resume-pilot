@@ -19,7 +19,8 @@ describe("RunDetailPage", () => {
     );
 
     expect(screen.getByText("detail-001")).toBeInTheDocument();
-    expect(screen.getByText("Trace 时间线")).toBeInTheDocument();
+    expect(screen.getByText("流程追踪")).toBeInTheDocument();
+    expect(screen.getByText("候选人评估报告")).toBeInTheDocument();
     expect(screen.getByText("Matched Python")).toBeInTheDocument();
     expect(screen.getByText("# Report")).toBeInTheDocument();
   });

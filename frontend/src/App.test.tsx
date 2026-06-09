@@ -56,10 +56,11 @@ describe("App", () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText("react-run-001")).toBeInTheDocument());
-    expect(screen.getByText("招聘评估控制舱")).toBeInTheDocument();
-    expect(screen.getByText("已持久化运行")).toBeInTheDocument();
-    expect(screen.getByText("待人工复核")).toBeInTheDocument();
-    expect(screen.getByText("最近批次")).toBeInTheDocument();
+    expect(screen.getByText("招聘评估工作台")).toBeInTheDocument();
+    expect(screen.getByText("今日待复核")).toBeInTheDocument();
+    expect(screen.getByText("候选人批次")).toBeInTheDocument();
+    expect(screen.getByText("最近评估批次")).toBeInTheDocument();
+    expect(screen.getAllByText("创建评估批次").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("react-batch-001")).toBeInTheDocument();
     expect(screen.getByText("human_review")).toBeInTheDocument();
   });

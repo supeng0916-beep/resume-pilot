@@ -14,7 +14,10 @@ export function RunDetailPage({ run, trace, report }: RunDetailPageProps) {
     <section className="run-detail">
       <div className="panel">
         <div className="panel__header">
-          <h2>{run.request_id}</h2>
+          <div>
+            <h2>候选人评估详情</h2>
+            <p>{run.request_id}</p>
+          </div>
           <StatusChip>{run.human_review_status ?? "unknown"}</StatusChip>
         </div>
         <dl className="detail-grid">
@@ -35,14 +38,20 @@ export function RunDetailPage({ run, trace, report }: RunDetailPageProps) {
 
       <section className="panel" id="trace">
         <div className="panel__header">
-          <h2>Trace 时间线</h2>
+          <div>
+            <h2>流程追踪</h2>
+            <p>展示解析、抽取、评分、风险评估和报告生成的节点执行记录。</p>
+          </div>
         </div>
         <TraceTimeline trace={trace} />
       </section>
 
       <section className="panel">
         <div className="panel__header">
-          <h2>评估报告</h2>
+          <div>
+            <h2>候选人评估报告</h2>
+            <p>供招聘官复核的匹配依据、风险提示和面试建议。</p>
+          </div>
         </div>
         <ReportPreview report={report} />
       </section>
