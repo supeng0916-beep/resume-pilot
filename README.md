@@ -45,6 +45,8 @@ Open:
 http://127.0.0.1:8501
 ```
 
+The Streamlit cabin is now kept as the legacy demo surface. The primary frontend direction is the React control cabin in `frontend/`.
+
 Stop the local control cabin after testing:
 
 ```powershell
@@ -96,6 +98,38 @@ The service persists workflow runs to `data/hr_runs.sqlite3` by default. The dat
 curl http://127.0.0.1:8000/runs/api-demo-001
 ```
 
+## React Control Cabin
+
+The React frontend is the new primary control cabin. It talks to FastAPI through HTTP and does not import Python workflow code directly.
+
+Start FastAPI first:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start_api.ps1
+```
+
+Then start the React dev server:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start_react_cabin.ps1
+```
+
+Open:
+
+```text
+http://127.0.0.1:5173
+```
+
+Frontend checks:
+
+```powershell
+cd frontend
+npm test -- --run
+npm run build
+```
+
+The current React cabin includes the app shell, health indicator, persisted run metrics, recent run table, and reusable detail components for trace/report views. It is intentionally API-first; new UI features should be backed by FastAPI endpoints rather than direct workflow calls.
+
 ## Docker
 
 Build and run the demo control cabin without copying local secrets into the image:
@@ -115,6 +149,14 @@ Run the full regression suite:
 
 ```powershell
 D:\python\python.exe -m pytest -q
+```
+
+Run frontend tests and build:
+
+```powershell
+cd frontend
+npm test -- --run
+npm run build
 ```
 
 Run the control-cabin focused tests:
