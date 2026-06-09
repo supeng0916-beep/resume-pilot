@@ -77,3 +77,28 @@ def test_api_exposes_trace_report_and_review_endpoints(tmp_path) -> None:
     reviews = client.get("/reviews")
     assert reviews.status_code == 200
     assert reviews.json()["reviews"][0]["request_id"] == "api-detail-001"
+
+
+def test_api_accepts_uploaded_resume_text_files_for_batch(tmp_path) -> None:
+    store = SQLiteRunStore(tmp_path / "runs.db")
+    app = create_app(store=store, upload_dir=tmp_path / "uploads")
+    client = TestClient(app)
+
+    response = client.post(
+        "/batch-evaluations/uploads",
+        data={
+            "request_id": "upload-batch-001",
+            "jd_text": "Backend engineer requires Python and FastAPI.",
+            "risk_model_path": "models/review_risk_model.json",
+        },
+        files=[
+            ("files", ("alice.txt", b"Alice. Python FastAPI Redis project.", "text/plain")),
+            ("files", ("bob.txt", b"Bob. Python SQL data pipeline.", "text/plain")),
+        ],
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["candidate_count"] == 2
+    saved_runs = client.get("/runs").json()["runs"]
+    assert len(saved_runs) == 2

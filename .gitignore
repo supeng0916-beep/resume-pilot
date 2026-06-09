@@ -32,4 +32,5 @@ data/model_cache/
 data/replay_cases/
 data/test_outputs/
 data/control_cabin_uploads/
+data/api_uploads/
 data/*.sqlite3

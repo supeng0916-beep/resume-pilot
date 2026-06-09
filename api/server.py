@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from core.persistence import SQLiteRunStore
 from harness.batch_runner import BatchResumeInput, run_batch_evaluation
 from harness.runner import run_evaluation
+
+DEFAULT_UPLOAD_DIR = Path("data/api_uploads")
 
 
 class EvaluationRequest(BaseModel):
@@ -41,9 +44,15 @@ class ReviewRequest(BaseModel):
     reviewer: str | None = None
 
 
-def create_app(*, store: SQLiteRunStore | None = None) -> FastAPI:
+def _safe_upload_filename(filename: str) -> str:
+    safe_name = Path(filename).name.strip().replace("\x00", "")
+    return safe_name or "resume.txt"
+
+
+def create_app(*, store: SQLiteRunStore | None = None, upload_dir: str | Path = DEFAULT_UPLOAD_DIR) -> FastAPI:
     run_store = store or SQLiteRunStore()
     run_store.initialize()
+    upload_root = Path(upload_dir)
     app = FastAPI(title="Agentic HR API", version="0.1.0")
 
     @app.get("/health")
@@ -82,6 +91,47 @@ def create_app(*, store: SQLiteRunStore | None = None) -> FastAPI:
             risk_model_path=request.risk_model_path,
             enable_llm_structured_extraction=request.enable_llm_structured_extraction,
             enable_llm_report_enhancement=request.enable_llm_report_enhancement,
+        )
+        for workflow_result in result.get("results", []):
+            run_store.save_workflow_result(workflow_result)
+        return result
+
+    @app.post("/batch-evaluations/uploads")
+    async def create_batch_evaluation_from_uploads(
+        request_id: str = Form(default="api-upload-batch"),
+        jd_text: str | None = Form(default=None),
+        risk_model_path: str | None = Form(default=None),
+        enable_llm_structured_extraction: bool | None = Form(default=None),
+        enable_llm_report_enhancement: bool | None = Form(default=None),
+        files: list[UploadFile] = File(...),
+    ) -> dict[str, Any]:
+        run_dir = upload_root / request_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+        resumes: list[BatchResumeInput] = []
+
+        for index, upload in enumerate(files, start=1):
+            filename = _safe_upload_filename(upload.filename or f"resume-{index}.txt")
+            content = await upload.read()
+            path = run_dir / f"{index:03d}_{filename}"
+            path.write_bytes(content)
+            candidate_id = Path(filename).stem or f"candidate-{index:03d}"
+            if path.suffix.lower() in {".txt", ".md"}:
+                resumes.append(
+                    BatchResumeInput(
+                        candidate_id=candidate_id,
+                        resume_text=content.decode("utf-8", errors="ignore"),
+                    )
+                )
+            else:
+                resumes.append(BatchResumeInput(candidate_id=candidate_id, resume_file_path=str(path)))
+
+        result = run_batch_evaluation(
+            resumes,
+            jd_text=jd_text,
+            request_id=request_id,
+            risk_model_path=risk_model_path,
+            enable_llm_structured_extraction=enable_llm_structured_extraction,
+            enable_llm_report_enhancement=enable_llm_report_enhancement,
         )
         for workflow_result in result.get("results", []):
             run_store.save_workflow_result(workflow_result)
