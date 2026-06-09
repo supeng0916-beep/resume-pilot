@@ -10,6 +10,7 @@ __pycache__
 .git
 .gitignore
 data/control_cabin_uploads
+data/api_uploads
 data/model_cache
 data/replay_cases
 data/test_outputs
@@ -17,3 +18,7 @@ data/examples/*.pdf
 memory/review_feedback.json
 models/*.pkl
 models/*.json
+!models/review_risk_model.json
+frontend/node_modules
+frontend/dist
+frontend/*.tsbuildinfo

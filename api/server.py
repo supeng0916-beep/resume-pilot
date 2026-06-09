@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from core.persistence import SQLiteRunStore
@@ -11,6 +12,7 @@ from harness.batch_runner import BatchResumeInput, run_batch_evaluation
 from harness.runner import run_evaluation
 
 DEFAULT_UPLOAD_DIR = Path("data/api_uploads")
+DEFAULT_FRONTEND_DIST = Path("frontend/dist")
 
 
 class EvaluationRequest(BaseModel):
@@ -49,10 +51,16 @@ def _safe_upload_filename(filename: str) -> str:
     return safe_name or "resume.txt"
 
 
-def create_app(*, store: SQLiteRunStore | None = None, upload_dir: str | Path = DEFAULT_UPLOAD_DIR) -> FastAPI:
+def create_app(
+    *,
+    store: SQLiteRunStore | None = None,
+    upload_dir: str | Path = DEFAULT_UPLOAD_DIR,
+    frontend_dist: str | Path = DEFAULT_FRONTEND_DIST,
+) -> FastAPI:
     run_store = store or SQLiteRunStore()
     run_store.initialize()
     upload_root = Path(upload_dir)
+    frontend_root = Path(frontend_dist)
     app = FastAPI(title="Agentic HR API", version="0.1.0")
 
     @app.get("/health")
@@ -176,6 +184,30 @@ def create_app(*, store: SQLiteRunStore | None = None, upload_dir: str | Path = 
         if saved is None:
             raise HTTPException(status_code=404, detail="run not found")
         return saved
+
+    @app.get("/", response_class=HTMLResponse)
+    def serve_frontend_index():
+        index_path = frontend_root / "index.html"
+        if not index_path.exists():
+            return HTMLResponse(
+                "<h1>Agentic HR API</h1><p>Build frontend with: cd frontend && npm run build</p>",
+                status_code=200,
+            )
+        return FileResponse(index_path)
+
+    @app.get("/{full_path:path}")
+    def serve_frontend_asset(full_path: str) -> FileResponse:
+        candidate = (frontend_root / full_path).resolve()
+        try:
+            candidate.relative_to(frontend_root.resolve())
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="asset not found") from exc
+        if candidate.is_file():
+            return FileResponse(candidate)
+        index_path = frontend_root / "index.html"
+        if index_path.exists() and "." not in Path(full_path).name:
+            return FileResponse(index_path)
+        raise HTTPException(status_code=404, detail="asset not found")
 
     return app
 

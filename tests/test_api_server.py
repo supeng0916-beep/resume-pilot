@@ -41,6 +41,29 @@ def test_api_health_returns_storage_status(tmp_path) -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_api_serves_react_dist_when_available(tmp_path) -> None:
+    dist_dir = tmp_path / "dist"
+    dist_dir.mkdir()
+    (dist_dir / "index.html").write_text("<div id=\"root\">React app</div>", encoding="utf-8")
+    assets_dir = dist_dir / "assets"
+    assets_dir.mkdir()
+    (assets_dir / "app.js").write_text("console.log('ok')", encoding="utf-8")
+
+    app = create_app(store=SQLiteRunStore(tmp_path / "runs.db"), frontend_dist=dist_dir)
+    client = TestClient(app)
+
+    root = client.get("/")
+    assert root.status_code == 200
+    assert "React app" in root.text
+
+    asset = client.get("/assets/app.js")
+    assert asset.status_code == 200
+    assert "console.log" in asset.text
+
+    spa_route = client.get("/runs/not-a-real-client-route")
+    assert spa_route.status_code == 404
+
+
 def test_api_exposes_trace_report_and_review_endpoints(tmp_path) -> None:
     store = SQLiteRunStore(tmp_path / "runs.db")
     store.save_workflow_result(

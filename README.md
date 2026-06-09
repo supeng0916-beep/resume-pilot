@@ -145,16 +145,22 @@ Uploaded files are ignored by git.
 
 ## Docker
 
-Build and run the demo control cabin without copying local secrets into the image:
+Build and run the React + FastAPI demo without copying local secrets into the image:
 
 ```powershell
 docker build -t agentic-hr .
-docker run --rm -p 8501:8501 --env-file .env agentic-hr
+docker run --rm -p 8000:8000 --env-file .env agentic-hr
 ```
 
 If you do not need LLM, OCR, or SMTP integrations, omit `--env-file .env`.
 
-The Docker image installs only `requirements.txt`. Local OCR dependencies stay optional in `requirements-ocr.txt` because EasyOCR/PaddleOCR are large and can make demo builds slow.
+Open:
+
+```text
+http://127.0.0.1:8000
+```
+
+The Docker image builds the React frontend in a Node stage, then serves the built `frontend/dist` through FastAPI. Local OCR dependencies stay optional in `requirements-ocr.txt` because EasyOCR/PaddleOCR are large and can make demo builds slow.
 
 ## Testing
 
