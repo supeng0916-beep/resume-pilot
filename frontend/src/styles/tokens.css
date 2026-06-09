@@ -1,0 +1,17 @@
+:root {
+  --color-primary: #0066cc;
+  --color-primary-focus: #0071e3;
+  --color-ink: #1d1d1f;
+  --color-muted: #6e6e73;
+  --color-canvas: #ffffff;
+  --color-parchment: #f5f5f7;
+  --color-panel: #fbfbfd;
+  --color-dark: #1d1d1f;
+  --color-hairline: #d2d2d7;
+  --color-divider: #e8e8ed;
+  --color-success: #248a3d;
+  --radius-sm: 8px;
+  --radius-pill: 9999px;
+  --font-ui: "SF Pro Text", system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+  --font-display: "SF Pro Display", system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+}
