@@ -130,7 +130,7 @@ npm run build
 
 The current React cabin includes the app shell, health indicator, persisted run metrics, recent run table, and reusable detail components for trace/report views. It is intentionally API-first; new UI features should be backed by FastAPI endpoints rather than direct workflow calls.
 
-The React cabin can run a demo batch from pasted resume text. Separate multiple resumes with a line containing `---`. FastAPI also exposes a multipart upload endpoint for browser/file based integrations:
+The React cabin can run a demo batch from pasted resume text or uploaded resume files. Separate pasted resumes with a line containing `---`. The upload control calls FastAPI's multipart endpoint:
 
 ```text
 POST /batch-evaluations/uploads

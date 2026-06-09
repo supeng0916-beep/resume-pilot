@@ -1,9 +1,10 @@
 import { useState } from "react";
-import type { BatchEvaluationRequest } from "../api/types";
+import type { BatchEvaluationRequest, UploadBatchEvaluationRequest } from "../api/types";
 
 interface BatchEvaluationPageProps {
   isRunning: boolean;
   onSubmit: (request: BatchEvaluationRequest) => Promise<void>;
+  onUploadSubmit: (request: UploadBatchEvaluationRequest) => Promise<void>;
 }
 
 function splitResumeTexts(value: string) {
@@ -17,7 +18,7 @@ function splitResumeTexts(value: string) {
     }));
 }
 
-export function BatchEvaluationPage({ isRunning, onSubmit }: BatchEvaluationPageProps) {
+export function BatchEvaluationPage({ isRunning, onSubmit, onUploadSubmit }: BatchEvaluationPageProps) {
   const [requestId, setRequestId] = useState(`react-batch-${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "")}`);
   const [jdText, setJdText] = useState("Backend engineer requires Python, FastAPI and Redis.");
   const [resumeTexts, setResumeTexts] = useState(
@@ -26,6 +27,7 @@ export function BatchEvaluationPage({ isRunning, onSubmit }: BatchEvaluationPage
   const [riskModelPath, setRiskModelPath] = useState("models/review_risk_model.json");
   const [enableLlmExtraction, setEnableLlmExtraction] = useState(false);
   const [enableLlmReport, setEnableLlmReport] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
 
   async function submitForm(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -36,6 +38,18 @@ export function BatchEvaluationPage({ isRunning, onSubmit }: BatchEvaluationPage
       enable_llm_structured_extraction: enableLlmExtraction,
       enable_llm_report_enhancement: enableLlmReport,
       resumes: splitResumeTexts(resumeTexts)
+    });
+  }
+
+  async function submitUpload(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await onUploadSubmit({
+      request_id: requestId.trim(),
+      jd_text: jdText.trim(),
+      risk_model_path: riskModelPath.trim() || undefined,
+      enable_llm_structured_extraction: enableLlmExtraction,
+      enable_llm_report_enhancement: enableLlmReport,
+      files
     });
   }
 
@@ -80,6 +94,26 @@ export function BatchEvaluationPage({ isRunning, onSubmit }: BatchEvaluationPage
         <div className="form-actions wide">
           <button className="button-primary" type="submit" disabled={isRunning || splitResumeTexts(resumeTexts).length === 0}>
             {isRunning ? "Running..." : "Run batch"}
+          </button>
+        </div>
+      </form>
+      <form className="upload-form" onSubmit={submitUpload}>
+        <label className="wide">
+          <span>Resume files</span>
+          <input
+            aria-label="Resume files"
+            type="file"
+            accept=".txt,.md,.pdf"
+            multiple
+            onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
+          />
+        </label>
+        <div className="upload-summary">
+          {files.length ? `${files.length} file(s) selected` : "Upload .txt, .md, or .pdf resumes"}
+        </div>
+        <div className="form-actions">
+          <button className="button-secondary" type="submit" disabled={isRunning || files.length === 0}>
+            Upload and run
           </button>
         </div>
       </form>

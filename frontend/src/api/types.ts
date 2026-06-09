@@ -51,6 +51,15 @@ export interface BatchEvaluationRequest {
   enable_llm_report_enhancement?: boolean;
 }
 
+export interface UploadBatchEvaluationRequest {
+  request_id: string;
+  files: File[];
+  jd_text?: string;
+  risk_model_path?: string;
+  enable_llm_structured_extraction?: boolean;
+  enable_llm_report_enhancement?: boolean;
+}
+
 export interface RankedCandidate {
   candidate_id: string;
   request_id: string;

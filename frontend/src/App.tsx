@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { createApiClient } from "./api/client";
-import type { BatchEvaluationRequest, HealthResponse, Report, TraceEvent, WorkflowRun } from "./api/types";
+import type {
+  BatchEvaluationRequest,
+  HealthResponse,
+  Report,
+  TraceEvent,
+  UploadBatchEvaluationRequest,
+  WorkflowRun
+} from "./api/types";
 import { AppShell } from "./components/AppShell";
 import { BatchEvaluationPage } from "./pages/BatchEvaluationPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -54,6 +61,23 @@ export default function App() {
     }
   }
 
+  async function uploadBatch(request: UploadBatchEvaluationRequest) {
+    setIsRunning(true);
+    setError(null);
+    try {
+      await api.uploadBatchEvaluation(request);
+      const latestRuns = await refreshRuns();
+      const firstRun = latestRuns.find((run) => run.request_id.startsWith(`${request.request_id}-`));
+      if (firstRun) {
+        await selectRun(firstRun.request_id);
+      }
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : "Upload batch evaluation failed");
+    } finally {
+      setIsRunning(false);
+    }
+  }
+
   async function selectRun(requestId: string) {
     setError(null);
     try {
@@ -89,7 +113,7 @@ export default function App() {
   return (
     <AppShell health={health}>
       <DashboardPage health={health} runs={runs} error={error} onSelectRun={selectRun} />
-      <BatchEvaluationPage isRunning={isRunning} onSubmit={runBatch} />
+      <BatchEvaluationPage isRunning={isRunning} onSubmit={runBatch} onUploadSubmit={uploadBatch} />
       <ReviewQueuePage runs={runs} onSubmitReview={submitReview} />
       {selectedRun ? <RunDetailPage run={selectedRun} trace={selectedTrace} report={selectedReport} /> : null}
     </AppShell>

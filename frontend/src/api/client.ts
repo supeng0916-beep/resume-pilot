@@ -5,6 +5,7 @@ import type {
   Report,
   Review,
   TraceEvent,
+  UploadBatchEvaluationRequest,
   WorkflowRun
 } from "./types";
 
@@ -21,6 +22,7 @@ export interface ApiClient {
   getReport(requestId: string): Promise<Report>;
   listReviews(): Promise<Review[]>;
   createBatchEvaluation(request: BatchEvaluationRequest): Promise<BatchEvaluationResult>;
+  uploadBatchEvaluation(request: UploadBatchEvaluationRequest): Promise<BatchEvaluationResult>;
   saveReview(
     requestId: string,
     review: { decision: string; feedback?: string; reviewer?: string }
@@ -72,6 +74,29 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(request)
+        })
+      );
+    },
+    async uploadBatchEvaluation(request) {
+      const formData = new FormData();
+      formData.append("request_id", request.request_id);
+      if (request.jd_text) {
+        formData.append("jd_text", request.jd_text);
+      }
+      if (request.risk_model_path) {
+        formData.append("risk_model_path", request.risk_model_path);
+      }
+      if (request.enable_llm_structured_extraction !== undefined) {
+        formData.append("enable_llm_structured_extraction", String(request.enable_llm_structured_extraction));
+      }
+      if (request.enable_llm_report_enhancement !== undefined) {
+        formData.append("enable_llm_report_enhancement", String(request.enable_llm_report_enhancement));
+      }
+      request.files.forEach((file) => formData.append("files", file));
+      return readJson<BatchEvaluationResult>(
+        await fetchImpl(endpoint(baseUrl, "/batch-evaluations/uploads"), {
+          method: "POST",
+          body: formData
         })
       );
     },

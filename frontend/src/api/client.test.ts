@@ -44,4 +44,31 @@ describe("api client", () => {
     );
     expect(result.candidate_count).toBe(1);
   });
+
+  it("uploads resume files through multipart batch endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        request_id: "upload-001",
+        candidate_count: 1,
+        ranked_candidates: [],
+        batch_report: "# upload"
+      })
+    });
+    const client = createApiClient({ baseUrl: "http://api.test", fetchImpl: fetchMock });
+    const file = new File(["Alice Python"], "alice.txt", { type: "text/plain" });
+
+    const result = await client.uploadBatchEvaluation({
+      request_id: "upload-001",
+      jd_text: "Backend requires Python",
+      risk_model_path: "models/review_risk_model.json",
+      files: [file]
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://api.test/batch-evaluations/uploads",
+      expect.objectContaining({ method: "POST", body: expect.any(FormData) })
+    );
+    expect(result.batch_report).toBe("# upload");
+  });
 });
