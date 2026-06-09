@@ -9,6 +9,11 @@ from core.risk_model import (
     load_risk_model,
     predict_risk_score,
 )
+from core.review_risk_model import (
+    build_review_risk_factors,
+    extract_review_risk_features_from_state,
+    predict_review_risk_score,
+)
 from core.state import WorkflowState
 from harness.trace import add_trace
 
@@ -18,6 +23,30 @@ def _evaluate_with_model(state: WorkflowState) -> dict | None:
     model = load_risk_model(model_path)
     if model is None:
         return None
+
+    if model.get("model_type") == "review_risk_logistic_v1":
+        features = extract_review_risk_features_from_state(state)
+        risk_score = predict_review_risk_score(model, features)
+        risk_factors = build_review_risk_factors(features, risk_score)
+        return {
+            "risk_score": risk_score,
+            "risk_factors": risk_factors,
+            "risk_features": features,
+            "risk_model_used": "review_risk_logistic_json",
+            "risk_model_path": model_path,
+            "current_step": "risk_evaluator",
+            "trace": add_trace(
+                state,
+                "risk_evaluator",
+                f"Estimated manual-review risk score: {risk_score}.",
+                {
+                    "risk_model_used": "review_risk_logistic_json",
+                    "risk_model_path": model_path,
+                    "risk_features": features,
+                    "risk_factors": risk_factors,
+                },
+            ),
+        }
 
     features = extract_risk_features(state)
     risk_score = predict_risk_score(model, features)

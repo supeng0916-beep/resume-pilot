@@ -77,7 +77,7 @@ def load_risk_model(path: str | Path) -> dict[str, Any] | None:
     if not model_path.exists():
         return None
     model = json.loads(model_path.read_text(encoding="utf-8"))
-    if model.get("model_type") != "logistic_risk_v1":
+    if model.get("model_type") not in {"logistic_risk_v1", "review_risk_logistic_v1"}:
         raise ValueError(f"unsupported risk model type: {model.get('model_type')}")
     return model
 

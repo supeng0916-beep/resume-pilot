@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -57,6 +58,72 @@ def _feature_row(candidate: dict[str, Any], job: dict[str, Any], label: dict[str
         "track_unknown": 1.0 if candidate.get("track") == "unknown" else 0.0,
         "weak_match": 1.0 if label.get("match_label") == "weak_match" else 0.0,
     }
+
+
+def extract_review_risk_features_from_state(state: dict[str, Any]) -> dict[str, float]:
+    candidate = state.get("candidate_profile") or {}
+    job = state.get("job_profile") or {}
+    match_breakdown = state.get("match_breakdown") or {}
+    required_skills = set(job.get("required_skills") or [])
+    candidate_skills = set(candidate.get("skills") or [])
+    coverage = len(required_skills & candidate_skills) / max(len(required_skills), 1)
+
+    salary_pressure = 0.0
+    salary_range = str(job.get("salary_range") or "")
+    expected_salary = str(candidate.get("expected_salary") or "")
+    salary_numbers = [float(value) for value in re.findall(r"[\d.]+", salary_range)]
+    expected_numbers = [float(value) for value in re.findall(r"[\d.]+", expected_salary)]
+    if salary_numbers and expected_numbers:
+        salary_max = max(salary_numbers)
+        expected = expected_numbers[0]
+        if salary_max > 0:
+            salary_pressure = max(0.0, min(1.0, (expected - salary_max * 0.85) / (salary_max * 0.35)))
+
+    required_years = float(job.get("required_years") or 0)
+    candidate_years = float(candidate.get("years_experience") or 0)
+    experience_gap = 0.0
+    if required_years > 0:
+        experience_gap = max(0.0, min(1.0, (required_years - candidate_years) / required_years))
+
+    evidence_notes = match_breakdown.get("evidence_notes") or []
+    matched_skills = match_breakdown.get("matched_skills") or []
+    weak_evidence = [
+        note
+        for note in evidence_notes
+        if "暂未找到项目证据" in str(note) or "弱" in str(note) or "unsupported" in str(note)
+    ]
+    evidence_gap = min(1.0, len(weak_evidence) / max(len(matched_skills), 1)) if matched_skills else 1.0
+
+    document_meta = state.get("document_meta") or {}
+    parse_quality = document_meta.get("parse_quality_score")
+    parse_quality_gap = 0.0
+    if parse_quality is not None:
+        parse_quality_gap = max(0.0, min(1.0, 1.0 - float(parse_quality)))
+
+    return {
+        "required_skill_coverage": round(coverage, 4),
+        "parse_quality_gap": round(parse_quality_gap, 4),
+        "salary_pressure": round(salary_pressure, 4),
+        "experience_gap": round(experience_gap, 4),
+        "evidence_gap": round(evidence_gap, 4),
+        "track_unknown": 1.0 if candidate.get("candidate_track") == "unknown" else 0.0,
+        "weak_match": 1.0 if float(state.get("match_score") or 0.0) < 55 else 0.0,
+    }
+
+
+def build_review_risk_factors(features: dict[str, float], score: float) -> list[str]:
+    factors = [f"人工复核风险分为 {score}，用于决定复核优先级，不代表录用结论。"]
+    if features.get("parse_quality_gap", 0) >= 0.3:
+        factors.append("解析质量存在缺口，需要人工确认简历文本是否完整。")
+    if features.get("salary_pressure", 0) >= 0.5:
+        factors.append("薪资预期接近或超过岗位预算，需要人工确认 offer 接受风险。")
+    if features.get("experience_gap", 0) >= 0.5:
+        factors.append("候选人年限低于岗位要求，需要面试确认项目深度。")
+    if features.get("evidence_gap", 0) >= 0.5:
+        factors.append("部分技能缺少项目证据支撑，需要核实关键词堆砌风险。")
+    if features.get("track_unknown", 0) >= 1:
+        factors.append("候选人招聘轨道不明确，需要确认校招、社招或实习类型。")
+    return factors
 
 
 def build_review_risk_rows(
