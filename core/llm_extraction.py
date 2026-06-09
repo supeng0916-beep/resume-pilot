@@ -60,7 +60,7 @@ def build_resume_extraction_messages(resume_text: str) -> list[dict[str, Any]]:
             "role": "system",
             "content": (
                 "你是严谨的招聘信息抽取助手。只根据简历原文抽取 CandidateProfile JSON，"
-                "不要编造经历、项目、学历或技能。没有证据的字段使用 unknown、0、空数组或 null。"
+                "不要编造经历、项目、学历或技能。没有证据的字段使用 unknown、空数组或 null。"
                 "candidate_track 只能是 campus、experienced、intern、unknown。"
                 "skill_evidence 中的证据片段必须来自简历原文。只输出 JSON，不要输出解释。"
             ),
@@ -123,7 +123,7 @@ def _extract_with_llm(
         content = chat_client.complete(messages=messages, config=llm_config)
         payload = _extract_json_object(content)
         profile = _validate_payload(payload, model)
-    except (ValidationError, ValueError, json.JSONDecodeError, RuntimeError) as exc:
+    except Exception as exc:
         return LLMExtractionResult(
             enabled=True,
             profile=None,

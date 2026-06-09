@@ -69,6 +69,11 @@ class InvalidExtractionClient:
         return "not json"
 
 
+class TimeoutExtractionClient:
+    def complete(self, *, messages, config) -> str:
+        raise TimeoutError("read operation timed out")
+
+
 def test_build_resume_extraction_messages_include_schema_and_text() -> None:
     messages = build_resume_extraction_messages("姓名：李明。项目经历：Python。")
 
@@ -118,3 +123,16 @@ def test_extract_resume_profile_with_llm_returns_failure_without_profile() -> No
     assert result.enabled is True
     assert result.profile is None
     assert "已回退规则抽取" in result.provider_message
+
+
+def test_extract_resume_profile_with_llm_returns_failure_on_timeout() -> None:
+    result = extract_resume_profile_with_llm(
+        "候选人 Alice，Python FastAPI 项目。",
+        config=LLMConfig(api_key="secret", model="fake-model"),
+        client=TimeoutExtractionClient(),
+    )
+
+    assert result.enabled is True
+    assert result.profile is None
+    assert "已回退规则抽取" in result.provider_message
+    assert "timed out" in result.provider_message
