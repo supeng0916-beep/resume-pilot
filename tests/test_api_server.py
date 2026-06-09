@@ -39,3 +39,41 @@ def test_api_health_returns_storage_status(tmp_path) -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+
+def test_api_exposes_trace_report_and_review_endpoints(tmp_path) -> None:
+    store = SQLiteRunStore(tmp_path / "runs.db")
+    store.save_workflow_result(
+        {
+            "request_id": "api-detail-001",
+            "current_step": "human_review",
+            "match_score": 91.0,
+            "risk_score": 0.18,
+            "human_review_status": "pending",
+            "trace": [{"node": "matcher", "output_summary": "matched Python"}],
+            "report": "# Candidate report",
+            "candidate_profile": {"name": "Candidate Detail"},
+            "job_profile": {"title": "Backend Engineer", "required_skills": ["Python"]},
+        }
+    )
+    app = create_app(store=store)
+    client = TestClient(app)
+
+    trace = client.get("/traces/api-detail-001")
+    assert trace.status_code == 200
+    assert trace.json()["trace"][0]["node"] == "matcher"
+
+    report = client.get("/reports/api-detail-001")
+    assert report.status_code == 200
+    assert report.json()["markdown"] == "# Candidate report"
+
+    review = client.post(
+        "/reviews/api-detail-001",
+        json={"decision": "approve", "feedback": "Proceed.", "reviewer": "hr"},
+    )
+    assert review.status_code == 200
+    assert review.json()["decision"] == "approve"
+
+    reviews = client.get("/reviews")
+    assert reviews.status_code == 200
+    assert reviews.json()["reviews"][0]["request_id"] == "api-detail-001"

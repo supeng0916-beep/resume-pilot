@@ -35,6 +35,12 @@ class BatchEvaluationRequest(BaseModel):
     enable_llm_report_enhancement: bool | None = None
 
 
+class ReviewRequest(BaseModel):
+    decision: str = Field(min_length=1)
+    feedback: str | None = None
+    reviewer: str | None = None
+
+
 def create_app(*, store: SQLiteRunStore | None = None) -> FastAPI:
     run_store = store or SQLiteRunStore()
     run_store.initialize()
@@ -84,6 +90,35 @@ def create_app(*, store: SQLiteRunStore | None = None) -> FastAPI:
     @app.get("/runs")
     def list_runs(limit: int = 50) -> dict[str, Any]:
         return {"runs": run_store.list_runs(limit=limit)}
+
+    @app.get("/traces/{request_id}")
+    def get_trace(request_id: str) -> dict[str, Any]:
+        if run_store.get_run(request_id) is None:
+            raise HTTPException(status_code=404, detail="run not found")
+        return {"request_id": request_id, "trace": run_store.get_trace(request_id)}
+
+    @app.get("/reports/{request_id}")
+    def get_report(request_id: str) -> dict[str, Any]:
+        report = run_store.get_report(request_id)
+        if report is None:
+            raise HTTPException(status_code=404, detail="report not found")
+        return report
+
+    @app.get("/reviews")
+    def list_reviews(limit: int = 50) -> dict[str, Any]:
+        return {"reviews": run_store.list_reviews(limit=limit)}
+
+    @app.post("/reviews/{request_id}")
+    def save_review(request_id: str, request: ReviewRequest) -> dict[str, Any]:
+        try:
+            return run_store.save_review(
+                request_id=request_id,
+                decision=request.decision,
+                feedback=request.feedback,
+                reviewer=request.reviewer,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.get("/runs/{request_id}")
     def get_run(request_id: str) -> dict[str, Any]:
