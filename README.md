@@ -117,6 +117,14 @@ D:\python\python.exe -m streamlit run app\annotation_cabin.py
 
 Manual annotations are appended to `data/datasets/annotations.jsonl`. The recommended ML target is `needs_human_review`, not a direct hiring decision. See `docs/annotation_guideline.md` for label definitions and Colab handoff notes.
 
+Train the lightweight manual-review risk model:
+
+```powershell
+D:\python\python.exe scripts\train_review_risk_model.py --dataset-dir data\datasets --output models\review_risk_model.json --model-card models\model_card_review_risk.md
+```
+
+The model predicts whether a case needs human review. It is a process-risk model, not a hiring prediction model.
+
 ## Optional LLM Enhancement
 
 The report writer can append an LLM-assisted summary and interview-question enhancement. It is disabled by default. Create a local `.env` file in the project root and keep it out of git:

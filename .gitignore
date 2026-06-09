@@ -15,6 +15,7 @@ pytest-cache-files-*/
 
 models/*.pkl
 models/*.json
+models/*.md
 memory/review_feedback.json
 data/*.csv
 data/datasets/annotations.jsonl

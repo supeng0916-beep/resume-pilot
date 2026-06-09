@@ -95,3 +95,11 @@ PDF 解析、OCR 或 Vision LLM 转写质量较低。
 - `models/model_card_review_risk.md`
 
 模型目标建议是预测 `needs_human_review`，而不是预测候选人是否应被录用。
+
+本地训练命令：
+
+```powershell
+D:\python\python.exe scripts\train_review_risk_model.py --dataset-dir data\datasets --output models\review_risk_model.json --model-card models\model_card_review_risk.md
+```
+
+如果使用 Colab，可上传 `data/datasets/*.jsonl`，训练后把 `review_risk_model.json` 和 `model_card_review_risk.md` 放回项目的 `models/` 目录。`models/*.json` 默认不提交到 git，避免把临时模型或真实训练产物误提交。
