@@ -242,6 +242,8 @@ Manual annotations are appended to `data/datasets/annotations.jsonl`. The recomm
 
 See `docs/data_schema.md` for JSONL schemas, privacy boundaries, and the SQLite persistence shape. See `docs/ml_pipeline.md` for the manual-review risk model training and deployment flow.
 
+See `docs/architecture_diagrams.md` for Mermaid diagrams covering the system context, Hub-and-Spoke workflow, harness layer, frontend/backend split, persistence schema, and production async Redis evolution.
+
 Train the lightweight manual-review risk model:
 
 ```powershell
