@@ -102,6 +102,7 @@ def create_app(
         )
         for workflow_result in result.get("results", []):
             run_store.save_workflow_result(workflow_result)
+        run_store.save_batch_result(result)
         return result
 
     @app.post("/batch-evaluations/uploads")
@@ -143,11 +144,23 @@ def create_app(
         )
         for workflow_result in result.get("results", []):
             run_store.save_workflow_result(workflow_result)
+        run_store.save_batch_result(result)
         return result
 
     @app.get("/runs")
-    def list_runs(limit: int = 50) -> dict[str, Any]:
-        return {"runs": run_store.list_runs(limit=limit)}
+    def list_runs(limit: int = 50, offset: int = 0, status: str | None = None) -> dict[str, Any]:
+        return {"runs": run_store.list_runs(limit=limit, offset=offset, status=status)}
+
+    @app.get("/batches")
+    def list_batches(limit: int = 50, offset: int = 0) -> dict[str, Any]:
+        return {"batches": run_store.list_batches(limit=limit, offset=offset)}
+
+    @app.get("/batches/{request_id}")
+    def get_batch(request_id: str) -> dict[str, Any]:
+        batch = run_store.get_batch(request_id)
+        if batch is None:
+            raise HTTPException(status_code=404, detail="batch not found")
+        return batch
 
     @app.get("/traces/{request_id}")
     def get_trace(request_id: str) -> dict[str, Any]:

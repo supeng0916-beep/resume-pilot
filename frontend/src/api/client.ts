@@ -1,6 +1,7 @@
 import type {
   BatchEvaluationRequest,
   BatchEvaluationResult,
+  BatchSummary,
   HealthResponse,
   Report,
   Review,
@@ -17,6 +18,7 @@ export interface ApiClientOptions {
 export interface ApiClient {
   getHealth(): Promise<HealthResponse>;
   listRuns(): Promise<WorkflowRun[]>;
+  listBatches(): Promise<BatchSummary[]>;
   getRun(requestId: string): Promise<WorkflowRun>;
   getTrace(requestId: string): Promise<TraceEvent[]>;
   getReport(requestId: string): Promise<Report>;
@@ -51,6 +53,10 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     async listRuns() {
       const payload = await readJson<{ runs: WorkflowRun[] }>(await fetchImpl(endpoint(baseUrl, "/runs")));
       return payload.runs;
+    },
+    async listBatches() {
+      const payload = await readJson<{ batches: BatchSummary[] }>(await fetchImpl(endpoint(baseUrl, "/batches")));
+      return payload.batches;
     },
     async getRun(requestId: string) {
       return readJson<WorkflowRun>(await fetchImpl(endpoint(baseUrl, `/runs/${encodeURIComponent(requestId)}`)));

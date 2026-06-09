@@ -73,3 +73,62 @@ def test_sqlite_run_store_persists_run_trace_review_and_report(tmp_path) -> None
     assert review["decision"] == "approve"
     assert store.get_run("run-001")["human_review_status"] == "reviewed_approve"
     assert store.list_reviews()[0]["feedback"] == "Looks good."
+
+
+def test_sqlite_run_store_persists_batch_and_filters_runs(tmp_path) -> None:
+    db_path = tmp_path / "hr_runs.db"
+    store = SQLiteRunStore(db_path)
+    store.initialize()
+
+    first_result = {
+        "request_id": "batch-001-001-alice",
+        "current_step": "human_review",
+        "match_score": 92.0,
+        "risk_score": 0.12,
+        "human_review_status": "pending",
+        "trace": [],
+        "report": "# Alice",
+        "candidate_profile": {"name": "Alice"},
+        "job_profile": {"title": "Backend Engineer", "required_skills": ["Python"]},
+    }
+    second_result = {
+        "request_id": "batch-001-002-bob",
+        "current_step": "human_review",
+        "match_score": 70.0,
+        "risk_score": 0.48,
+        "human_review_status": "reviewed_reject",
+        "trace": [],
+        "report": "# Bob",
+        "candidate_profile": {"name": "Bob"},
+        "job_profile": {"title": "Backend Engineer", "required_skills": ["Python"]},
+    }
+    batch_result = {
+        "request_id": "batch-001",
+        "candidate_count": 2,
+        "ranked_candidates": [
+            {"candidate_id": "alice", "request_id": "batch-001-001-alice", "rank_score": 91.5},
+            {"candidate_id": "bob", "request_id": "batch-001-002-bob", "rank_score": 68.2},
+        ],
+        "results": [first_result, second_result],
+        "batch_report": "# Batch report",
+    }
+
+    for result in batch_result["results"]:
+        store.save_workflow_result(result)
+    store.save_batch_result(batch_result)
+
+    pending_runs = store.list_runs(status="pending", limit=10, offset=0)
+    assert [item["request_id"] for item in pending_runs] == ["batch-001-001-alice"]
+
+    paged_runs = store.list_runs(limit=1, offset=1)
+    assert len(paged_runs) == 1
+
+    batches = store.list_batches(limit=10)
+    assert batches[0]["request_id"] == "batch-001"
+    assert batches[0]["candidate_count"] == 2
+    assert batches[0]["top_candidate_request_id"] == "batch-001-001-alice"
+
+    batch = store.get_batch("batch-001")
+    assert batch is not None
+    assert batch["ranked_candidates"][0]["candidate_id"] == "alice"
+    assert batch["runs"][0]["request_id"] == "batch-001-001-alice"

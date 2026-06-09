@@ -125,3 +125,37 @@ def test_api_accepts_uploaded_resume_text_files_for_batch(tmp_path) -> None:
     assert payload["candidate_count"] == 2
     saved_runs = client.get("/runs").json()["runs"]
     assert len(saved_runs) == 2
+
+    batches = client.get("/batches").json()["batches"]
+    assert batches[0]["request_id"] == "upload-batch-001"
+    assert batches[0]["candidate_count"] == 2
+
+    batch_detail = client.get("/batches/upload-batch-001")
+    assert batch_detail.status_code == 200
+    assert len(batch_detail.json()["runs"]) == 2
+
+
+def test_api_filters_and_pages_runs(tmp_path) -> None:
+    store = SQLiteRunStore(tmp_path / "runs.db")
+    for index, status in enumerate(["pending", "reviewed_approve", "pending"], start=1):
+        store.save_workflow_result(
+            {
+                "request_id": f"api-filter-{index}",
+                "current_step": "human_review",
+                "match_score": 80 + index,
+                "risk_score": 0.1,
+                "human_review_status": status,
+                "trace": [],
+                "report": "# report",
+            }
+        )
+    app = create_app(store=store)
+    client = TestClient(app)
+
+    pending = client.get("/runs", params={"status": "pending", "limit": 10, "offset": 0})
+    assert pending.status_code == 200
+    assert {item["human_review_status"] for item in pending.json()["runs"]} == {"pending"}
+
+    paged = client.get("/runs", params={"limit": 1, "offset": 1})
+    assert paged.status_code == 200
+    assert len(paged.json()["runs"]) == 1

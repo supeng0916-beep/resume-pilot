@@ -1,16 +1,17 @@
-import { Database, GitBranch, ShieldCheck } from "lucide-react";
-import type { HealthResponse, WorkflowRun } from "../api/types";
+import { Database, GitBranch, Layers3, ShieldCheck } from "lucide-react";
+import type { BatchSummary, HealthResponse, WorkflowRun } from "../api/types";
 import { MetricTile } from "../components/MetricTile";
 import { StatusChip } from "../components/StatusChip";
 
 interface DashboardPageProps {
   health: HealthResponse | null;
   runs: WorkflowRun[];
+  batches: BatchSummary[];
   error: string | null;
   onSelectRun: (requestId: string) => void;
 }
 
-export function DashboardPage({ health, runs, error, onSelectRun }: DashboardPageProps) {
+export function DashboardPage({ health, runs, batches, error, onSelectRun }: DashboardPageProps) {
   return (
     <>
       <div className="page-heading">
@@ -30,7 +31,55 @@ export function DashboardPage({ health, runs, error, onSelectRun }: DashboardPag
           label="待人工复核"
           value={runs.filter((run) => run.human_review_status === "pending").length}
         />
+        <MetricTile icon={<Layers3 size={18} />} label="批量评估批次" value={batches.length} />
         <MetricTile icon={<GitBranch size={18} />} label="后端存储" value={health?.storage ?? "sqlite"} />
+      </section>
+
+      <section className="panel" id="batches">
+        <div className="panel__header">
+          <h2>最近批次</h2>
+          <StatusChip>SQLite 批次归档</StatusChip>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>批次 ID</th>
+                <th>候选人数</th>
+                <th>Top 候选人</th>
+                <th>更新时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              {batches.length === 0 ? (
+                <tr>
+                  <td colSpan={4}>暂无批量评估批次。完成一次批量上传后，这里会显示批次归档。</td>
+                </tr>
+              ) : (
+                batches.map((batch) => (
+                  <tr key={batch.request_id}>
+                    <td>{batch.request_id}</td>
+                    <td>{batch.candidate_count}</td>
+                    <td>
+                      {batch.top_candidate_request_id ? (
+                        <button
+                          className="link-button"
+                          type="button"
+                          onClick={() => onSelectRun(batch.top_candidate_request_id as string)}
+                        >
+                          {batch.top_candidate_request_id}
+                        </button>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td>{batch.updated_at ?? "-"}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="panel" id="runs">

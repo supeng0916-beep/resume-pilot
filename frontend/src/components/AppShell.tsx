@@ -23,6 +23,7 @@ export function AppShell({ health, children }: AppShellProps) {
         <div className="sub-nav__inner">
           <strong>React 控制舱</strong>
           <div className="sub-nav__links">
+            <a href="#batches">批次归档</a>
             <a href="#runs">运行记录</a>
             <a href="#reviews">人工复核</a>
             <a href="#trace">Trace</a>

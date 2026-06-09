@@ -79,6 +79,15 @@ export interface BatchEvaluationResult {
   batch_report: string;
 }
 
+export interface BatchSummary {
+  request_id: string;
+  candidate_count: number;
+  top_candidate_request_id?: string | null;
+  ranked_candidates: RankedCandidate[];
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface HealthResponse {
   status: string;
   storage: string;

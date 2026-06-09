@@ -98,3 +98,21 @@ SQLite 保存：
 - 完整 trace 以 JSON 保存，便于 replay、debug 和 demo 展示。
 
 数据库文件默认忽略，不提交到仓库。
+### Runtime Persistence Tables
+
+FastAPI 服务使用 SQLite 保存运行结果，React 控制舱只通过 API 读取这些持久化数据。
+
+Default path: `data/hr_runs.sqlite3`
+
+SQLite 保存：
+- `workflow_runs`: request id、匹配分、风险分、人工复核状态、报告、完整 payload、trace。
+- `candidates`: 候选人姓名、学历、年限、分轨、期望薪资和完整候选人 profile。
+- `jobs`: 岗位标题、要求年限、招聘分轨、技能要求和完整岗位 profile。
+- `traces`: 节点级 trace 事件，支持排障、观测和 replay 展示。
+- `reports`: Markdown 报告和报告质量检查结果。
+- `reviews`: 人工复核结论、反馈、复核人和时间。
+- `batches`: 批量评估批次摘要、候选人数、Top 候选人、批次报告和完整 batch payload。
+- `batch_runs`: 批次与候选人运行记录的关联表，保留排名顺序、candidate id 和 rank score。
+
+完整 payload 和 trace 仍以 JSON 保存，方便 replay、debug 和 demo 展示；规范化字段用于列表查询、筛选和控制舱渲染。
+数据库文件默认忽略，不提交到仓库。

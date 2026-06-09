@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createApiClient } from "./api/client";
 import type {
   BatchEvaluationRequest,
+  BatchSummary,
   HealthResponse,
   Report,
   TraceEvent,
@@ -20,6 +21,7 @@ export default function App() {
   const api = useMemo(() => createApiClient(), []);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
+  const [batches, setBatches] = useState<BatchSummary[]>([]);
   const [selectedRun, setSelectedRun] = useState<WorkflowRun | null>(null);
   const [selectedTrace, setSelectedTrace] = useState<TraceEvent[]>([]);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -27,10 +29,11 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   function refreshRuns() {
-    return Promise.all([api.getHealth(), api.listRuns()])
-      .then(([healthResponse, runList]) => {
+    return Promise.all([api.getHealth(), api.listRuns(), api.listBatches()])
+      .then(([healthResponse, runList, batchList]) => {
         setHealth(healthResponse);
         setRuns(runList);
+        setBatches(batchList);
         return runList;
       })
       .catch((caught: unknown) => {
@@ -112,7 +115,7 @@ export default function App() {
 
   return (
     <AppShell health={health}>
-      <DashboardPage health={health} runs={runs} error={error} onSelectRun={selectRun} />
+      <DashboardPage health={health} runs={runs} batches={batches} error={error} onSelectRun={selectRun} />
       <BatchEvaluationPage isRunning={isRunning} onSubmit={runBatch} onUploadSubmit={uploadBatch} />
       <ReviewQueuePage runs={runs} onSubmitReview={submitReview} />
       {selectedRun ? <RunDetailPage run={selectedRun} trace={selectedTrace} report={selectedReport} /> : null}

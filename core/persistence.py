@@ -96,6 +96,34 @@ class SQLiteRunStore:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS batches (
+                    request_id TEXT PRIMARY KEY,
+                    candidate_count INTEGER NOT NULL,
+                    top_candidate_request_id TEXT,
+                    batch_report TEXT,
+                    ranked_candidates_json TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS batch_runs (
+                    batch_request_id TEXT NOT NULL,
+                    request_id TEXT NOT NULL,
+                    candidate_id TEXT,
+                    rank_score REAL,
+                    rank_index INTEGER,
+                    PRIMARY KEY(batch_request_id, request_id),
+                    FOREIGN KEY(batch_request_id) REFERENCES batches(request_id),
+                    FOREIGN KEY(request_id) REFERENCES workflow_runs(request_id)
+                )
+                """
+            )
 
     def save_workflow_result(self, result: dict[str, Any]) -> None:
         self.initialize()
@@ -252,18 +280,138 @@ class SQLiteRunStore:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    def list_runs(self, *, limit: int = 50) -> list[dict[str, Any]]:
+    def list_runs(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
         self.initialize()
+        safe_limit = max(1, min(int(limit), 200))
+        safe_offset = max(0, int(offset))
+        parameters: list[Any] = []
+        where_clause = ""
+        if status:
+            where_clause = "WHERE human_review_status = ?"
+            parameters.append(status)
+        parameters.extend([safe_limit, safe_offset])
+        with self._connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT * FROM workflow_runs
+                {where_clause}
+                ORDER BY updated_at DESC, created_at DESC
+                LIMIT ? OFFSET ?
+                """,
+                parameters,
+            ).fetchall()
+        return [self._row_to_dict(row) for row in rows]
+
+    def save_batch_result(self, batch_result: dict[str, Any]) -> None:
+        self.initialize()
+        request_id = str(batch_result.get("request_id") or "").strip()
+        if not request_id:
+            raise ValueError("batch result must include request_id")
+
+        ranked_candidates = batch_result.get("ranked_candidates") or []
+        top_candidate_request_id = None
+        if ranked_candidates and isinstance(ranked_candidates[0], dict):
+            top_candidate_request_id = ranked_candidates[0].get("request_id")
+
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO batches (
+                    request_id,
+                    candidate_count,
+                    top_candidate_request_id,
+                    batch_report,
+                    ranked_candidates_json,
+                    payload_json
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(request_id) DO UPDATE SET
+                    candidate_count=excluded.candidate_count,
+                    top_candidate_request_id=excluded.top_candidate_request_id,
+                    batch_report=excluded.batch_report,
+                    ranked_candidates_json=excluded.ranked_candidates_json,
+                    payload_json=excluded.payload_json,
+                    updated_at=CURRENT_TIMESTAMP
+                """,
+                (
+                    request_id,
+                    int(batch_result.get("candidate_count") or len(ranked_candidates)),
+                    top_candidate_request_id,
+                    batch_result.get("batch_report"),
+                    json.dumps(ranked_candidates, ensure_ascii=False, default=str),
+                    json.dumps(batch_result, ensure_ascii=False, default=str),
+                ),
+            )
+            connection.execute("DELETE FROM batch_runs WHERE batch_request_id = ?", (request_id,))
+            connection.executemany(
+                """
+                INSERT INTO batch_runs (
+                    batch_request_id,
+                    request_id,
+                    candidate_id,
+                    rank_score,
+                    rank_index
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        request_id,
+                        item.get("request_id"),
+                        item.get("candidate_id"),
+                        item.get("rank_score"),
+                        index,
+                    )
+                    for index, item in enumerate(ranked_candidates, start=1)
+                    if isinstance(item, dict) and item.get("request_id")
+                ],
+            )
+
+    def list_batches(self, *, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
+        self.initialize()
+        safe_limit = max(1, min(int(limit), 200))
+        safe_offset = max(0, int(offset))
         with self._connect() as connection:
             rows = connection.execute(
                 """
-                SELECT * FROM workflow_runs
+                SELECT * FROM batches
                 ORDER BY updated_at DESC, created_at DESC
-                LIMIT ?
+                LIMIT ? OFFSET ?
                 """,
-                (limit,),
+                (safe_limit, safe_offset),
             ).fetchall()
-        return [self._row_to_dict(row) for row in rows]
+        return [self._batch_row_to_summary(row) for row in rows]
+
+    def get_batch(self, request_id: str) -> dict[str, Any] | None:
+        self.initialize()
+        with self._connect() as connection:
+            batch_row = connection.execute(
+                "SELECT * FROM batches WHERE request_id = ?",
+                (request_id,),
+            ).fetchone()
+            if batch_row is None:
+                return None
+            run_rows = connection.execute(
+                """
+                SELECT workflow_runs.*
+                FROM batch_runs
+                JOIN workflow_runs ON workflow_runs.request_id = batch_runs.request_id
+                WHERE batch_runs.batch_request_id = ?
+                ORDER BY batch_runs.rank_index ASC
+                """,
+                (request_id,),
+            ).fetchall()
+        batch = self._batch_row_to_summary(batch_row)
+        batch["batch_report"] = batch_row["batch_report"]
+        batch["payload"] = json.loads(batch_row["payload_json"])
+        batch["runs"] = [self._row_to_dict(row) for row in run_rows]
+        return batch
 
     def get_candidate(self, request_id: str) -> dict[str, Any] | None:
         self.initialize()
@@ -421,4 +569,15 @@ class SQLiteRunStore:
             "feedback": row["feedback"],
             "reviewer": row["reviewer"],
             "created_at": row["created_at"],
+        }
+
+    @staticmethod
+    def _batch_row_to_summary(row: sqlite3.Row) -> dict[str, Any]:
+        return {
+            "request_id": row["request_id"],
+            "candidate_count": row["candidate_count"],
+            "top_candidate_request_id": row["top_candidate_request_id"],
+            "ranked_candidates": json.loads(row["ranked_candidates_json"]),
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
         }

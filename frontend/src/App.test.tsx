@@ -7,7 +7,7 @@ describe("App", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders persisted runs from FastAPI", async () => {
+  it("renders persisted runs and batches from FastAPI", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
       if (url.endsWith("/health")) {
@@ -33,6 +33,23 @@ describe("App", () => {
           )
         );
       }
+      if (url.endsWith("/batches")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              batches: [
+                {
+                  request_id: "react-batch-001",
+                  candidate_count: 2,
+                  top_candidate_request_id: "react-batch-001-001-alice",
+                  ranked_candidates: []
+                }
+              ]
+            }),
+            { status: 200 }
+          )
+        );
+      }
       return Promise.resolve(new Response("{}", { status: 404 }));
     });
 
@@ -42,6 +59,8 @@ describe("App", () => {
     expect(screen.getByText("招聘评估控制舱")).toBeInTheDocument();
     expect(screen.getByText("已持久化运行")).toBeInTheDocument();
     expect(screen.getByText("待人工复核")).toBeInTheDocument();
+    expect(screen.getByText("最近批次")).toBeInTheDocument();
+    expect(screen.getByText("react-batch-001")).toBeInTheDocument();
     expect(screen.getByText("human_review")).toBeInTheDocument();
   });
 });

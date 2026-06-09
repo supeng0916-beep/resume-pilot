@@ -21,6 +21,21 @@ describe("api client", () => {
     expect(runs[0].request_id).toBe("run-001");
   });
 
+  it("lists persisted batches from the backend", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        batches: [{ request_id: "batch-001", candidate_count: 2, top_candidate_request_id: "batch-001-001-a" }]
+      })
+    });
+    const client = createApiClient({ baseUrl: "http://api.test", fetchImpl: fetchMock });
+
+    const batches = await client.listBatches();
+
+    expect(fetchMock).toHaveBeenCalledWith("http://api.test/batches");
+    expect(batches[0].candidate_count).toBe(2);
+  });
+
   it("creates batch evaluations through FastAPI", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

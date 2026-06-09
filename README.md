@@ -98,6 +98,14 @@ The service persists workflow runs to `data/hr_runs.sqlite3` by default. The dat
 curl http://127.0.0.1:8000/runs/api-demo-001
 ```
 
+Query persisted lists with pagination and review-status filtering:
+
+```powershell
+curl "http://127.0.0.1:8000/runs?status=pending&limit=20&offset=0"
+curl "http://127.0.0.1:8000/batches?limit=20&offset=0"
+curl http://127.0.0.1:8000/batches/upload-batch-001
+```
+
 ## React Control Cabin
 
 The React frontend is the new primary control cabin. It talks to FastAPI through HTTP and does not import Python workflow code directly.
@@ -128,7 +136,7 @@ npm test -- --run
 npm run build
 ```
 
-The current React cabin includes the app shell, health indicator, persisted run metrics, recent run table, and reusable detail components for trace/report views. It is intentionally API-first; new UI features should be backed by FastAPI endpoints rather than direct workflow calls.
+The current React cabin includes the app shell, health indicator, persisted run metrics, batch archive metrics, recent batch table, recent run table, and reusable detail components for trace/report views. It is intentionally API-first; new UI features should be backed by FastAPI endpoints rather than direct workflow calls.
 
 The React cabin can run a demo batch from pasted resume text or uploaded resume files. Separate pasted resumes with a line containing `---`. The upload control calls FastAPI's multipart endpoint:
 
@@ -142,6 +150,8 @@ Accepted upload files:
 - `.pdf`: saved under `data/api_uploads/` and passed through the document parser.
 
 Uploaded files are ignored by git.
+
+Batch runs are now stored in normalized SQLite tables as `batches` plus `batch_runs`, while each candidate run still keeps the full workflow payload for replay and debugging.
 
 ## Docker
 
