@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { WorkflowRun } from "../api/types";
 import { StatusChip } from "../components/StatusChip";
 
@@ -16,6 +16,12 @@ export function ReviewQueuePage({ runs, onSubmitReview }: ReviewQueuePageProps) 
   const [decision, setDecision] = useState("need_more_info");
   const [feedback, setFeedback] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!selectedRequestId && pendingRuns[0]?.request_id) {
+      setSelectedRequestId(pendingRuns[0].request_id);
+    }
+  }, [pendingRuns, selectedRequestId]);
 
   async function submitReview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -37,7 +43,7 @@ export function ReviewQueuePage({ runs, onSubmitReview }: ReviewQueuePageProps) 
       <div className="panel__header">
         <div>
           <h2>人工复核队列</h2>
-          <p>对 AI 标记的风险项进行确认，沉淀招聘偏好与复核原因。</p>
+          <p>确认 AI 标记的风险项，沉淀招聘偏好、复核原因和后续处理结论。</p>
         </div>
         <StatusChip>{`${pendingRuns.length} 个待复核`}</StatusChip>
       </div>
@@ -59,7 +65,7 @@ export function ReviewQueuePage({ runs, onSubmitReview }: ReviewQueuePageProps) 
           <label>
             <span>复核结论</span>
             <select aria-label="复核结论" value={decision} onChange={(event) => setDecision(event.target.value)}>
-              <option value="approve">通过进入下一轮</option>
+              <option value="approve">通过，进入下一轮</option>
               <option value="reject">暂不推进</option>
               <option value="revise">要求调整报告</option>
               <option value="need_more_info">补充候选人信息</option>

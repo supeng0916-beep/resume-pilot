@@ -1,4 +1,6 @@
-import type { Report, TraceEvent, WorkflowRun } from "../api/types";
+import { Mail } from "lucide-react";
+import { useState } from "react";
+import type { EmailDelivery, Report, TraceEvent, WorkflowRun } from "../api/types";
 import { ReportPreview } from "../components/ReportPreview";
 import { StatusChip } from "../components/StatusChip";
 import { TraceTimeline } from "../components/TraceTimeline";
@@ -7,9 +9,37 @@ interface RunDetailPageProps {
   run: WorkflowRun;
   trace: TraceEvent[];
   report: Report | null;
+  onSendReportEmail: (request: {
+    request_id: string;
+    recipient: string;
+    subject: string;
+  }) => Promise<EmailDelivery>;
 }
 
-export function RunDetailPage({ run, trace, report }: RunDetailPageProps) {
+export function RunDetailPage({ run, trace, report, onSendReportEmail }: RunDetailPageProps) {
+  const [recipient, setRecipient] = useState("");
+  const [subject, setSubject] = useState(`Agentic HR 候选人评估报告 - ${run.request_id}`);
+  const [deliveryMessage, setDeliveryMessage] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+
+  async function submitEmail(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSending(true);
+    setDeliveryMessage(null);
+    try {
+      const delivery = await onSendReportEmail({
+        request_id: run.request_id,
+        recipient: recipient.trim(),
+        subject: subject.trim()
+      });
+      setDeliveryMessage(delivery.message);
+    } catch (caught: unknown) {
+      setDeliveryMessage(caught instanceof Error ? caught.message : "邮件发送失败");
+    } finally {
+      setIsSending(false);
+    }
+  }
+
   return (
     <section className="run-detail">
       <div className="panel">
@@ -54,6 +84,37 @@ export function RunDetailPage({ run, trace, report }: RunDetailPageProps) {
           </div>
         </div>
         <ReportPreview report={report} />
+      </section>
+
+      <section className="panel">
+        <div className="panel__header">
+          <div>
+            <h2>发送评估报告</h2>
+            <p>通过后端 SMTP 配置发送当前候选人的 Markdown 报告，并记录投递结果。</p>
+          </div>
+          <StatusChip>FastAPI 邮件服务</StatusChip>
+        </div>
+        <form className="email-form" onSubmit={submitEmail}>
+          <label>
+            <span>收件人邮箱</span>
+            <input
+              type="email"
+              value={recipient}
+              onChange={(event) => setRecipient(event.target.value)}
+              placeholder="hr-lead@example.com"
+              required
+            />
+          </label>
+          <label>
+            <span>邮件主题</span>
+            <input value={subject} onChange={(event) => setSubject(event.target.value)} />
+          </label>
+          <button className="button-primary" type="submit" disabled={isSending || !report?.markdown}>
+            <Mail size={16} />
+            {isSending ? "发送中..." : "发送报告"}
+          </button>
+        </form>
+        {deliveryMessage ? <p className="email-status">{deliveryMessage}</p> : null}
       </section>
     </section>
   );

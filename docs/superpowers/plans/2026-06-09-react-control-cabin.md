@@ -4,7 +4,7 @@
 
 **Goal:** Build the first production-oriented React control cabin while extending FastAPI and SQLite so the frontend no longer depends on Streamlit or direct workflow calls.
 
-**Architecture:** React + TypeScript + Vite lives in `frontend/` and calls only FastAPI. FastAPI continues to invoke LangGraph workflows and persists normalized run, trace, report, review, candidate, and job data through `SQLiteRunStore`. Streamlit remains as a legacy demo entry.
+**Architecture:** React + TypeScript + Vite lives in `frontend/` and calls only FastAPI. FastAPI continues to invoke LangGraph workflows and persists normalized run, trace, report, review, candidate, job, batch, and email-delivery data through `SQLiteRunStore`. React is the only control cabin entry.
 
 **Tech Stack:** React, TypeScript, Vite, Vitest, FastAPI, Pydantic, SQLite, pytest.
 
@@ -175,7 +175,7 @@ Document:
 - FastAPI startup
 - React dev server startup
 - test commands
-- Streamlit legacy status
+- React-only control cabin status
 
 - [ ] **Step 2: Run backend tests**
 
@@ -204,6 +204,6 @@ git commit -m "Document React control cabin workflow"
 
 ## Self-Review
 
-- Spec coverage: React frontend, FastAPI boundary, SQLite normalized schema, Streamlit legacy migration, and tests are covered.
+- Spec coverage: React frontend, FastAPI boundary, SQLite normalized schema, control cabin migration, and tests are covered.
 - Placeholder scan: no implementation placeholder remains in this plan.
 - Type consistency: API methods map to endpoints in `DESIGN-react-control-cabin.md`.

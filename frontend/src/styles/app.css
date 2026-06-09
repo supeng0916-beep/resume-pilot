@@ -132,6 +132,7 @@ h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   min-height: 38px;
   border: 0;
   border-radius: var(--radius-sm);
@@ -344,7 +345,22 @@ h2 {
   padding-top: 16px;
 }
 
+.email-form {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr auto;
+  align-items: end;
+  gap: 14px;
+}
+
 .upload-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.email-form label {
   display: grid;
   gap: 6px;
   color: var(--color-muted);
@@ -360,7 +376,23 @@ h2 {
   background: var(--color-canvas);
 }
 
+.email-form input {
+  width: 100%;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  font: 400 14px/1.4 var(--font-ui);
+}
+
 .upload-summary {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.email-status {
+  margin: 12px 0 0;
   color: var(--color-muted);
   font-size: 13px;
 }
@@ -472,6 +504,10 @@ th {
   }
 
   .upload-form {
+    grid-template-columns: 1fr;
+  }
+
+  .email-form {
     grid-template-columns: 1fr;
   }
 }

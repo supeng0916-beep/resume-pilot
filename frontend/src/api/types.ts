@@ -92,3 +92,20 @@ export interface HealthResponse {
   status: string;
   storage: string;
 }
+
+export interface EmailReportRequest {
+  recipient: string;
+  subject?: string;
+  request_id?: string;
+  report_markdown?: string;
+}
+
+export interface EmailDelivery {
+  id: number;
+  request_id?: string | null;
+  recipient: string;
+  subject: string;
+  sent: boolean;
+  message: string;
+  created_at?: string;
+}

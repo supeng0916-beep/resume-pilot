@@ -1,7 +1,7 @@
 ---
 version: alpha
 name: Agentic-HR-react-control-cabin
-description: A production-oriented React control cabin for Agentic HR. The interface keeps Apple's quiet surface language as inspiration, but adapts it to a dense recruiting operations dashboard: restrained chrome, clear evidence trails, durable tables, trace timelines, and review workflows. React becomes the primary frontend; Streamlit remains as a legacy demo surface.
+description: A production-oriented React control cabin for Agentic HR. The interface keeps Apple's quiet surface language as inspiration, but adapts it to a dense recruiting operations dashboard: restrained chrome, clear evidence trails, durable tables, trace timelines, report email delivery, and review workflows. React is the only control cabin frontend.
 
 colors:
   primary: "#0066cc"
@@ -166,9 +166,9 @@ components:
 
 ## Overview
 
-The React control cabin replaces Streamlit as the primary operator interface for Agentic HR. It should feel like a serious recruiting operations cockpit, not a marketing site and not a beginner demo. The Apple reference is used for restraint: quiet surfaces, one action blue, clean typography, minimal chrome, and precise spacing. The domain adaptation is density: HR users need ranking tables, evidence snippets, trace timelines, report previews, review queues, and API state in one working surface.
+The React control cabin is the operator interface for Agentic HR. It should feel like a serious recruiting operations cockpit, not a marketing site and not a beginner demo. The Apple reference is used for restraint: quiet surfaces, one action blue, clean typography, minimal chrome, and precise spacing. The domain adaptation is density: HR users need ranking tables, evidence snippets, trace timelines, report previews, email delivery, review queues, and API state in one working surface.
 
-Streamlit remains in the repository as a legacy demo and fallback during migration. The new React frontend talks only to FastAPI. It never imports Python workflow code, never reads local files directly, and never writes SQLite directly. This gives the project a clear front-end/back-end split that is easy to explain in interviews:
+The React frontend talks only to FastAPI. It never imports Python workflow code, never reads local files directly, and never writes SQLite directly. This gives the project a clear front-end/back-end split that is easy to explain in interviews:
 
 ```text
 React Control Cabin -> FastAPI Service -> LangGraph Workflow -> SQLite Persistence
@@ -180,7 +180,7 @@ React Control Cabin -> FastAPI Service -> LangGraph Workflow -> SQLite Persisten
 - Make the Harness idea visible: every run has trace, replay metadata, extraction quality, report quality, and review state.
 - Make the AI safety boundary visible: model predicts manual-review risk, not hiring decisions.
 - Make debugging possible from the UI: show parsing mode, LLM status, risk features, evidence, trace events, and error reasons.
-- Preserve the existing Streamlit demo until the React feature set reaches parity.
+- Keep report email delivery available through FastAPI so the control cabin covers the full HR review workflow.
 
 ## Frontend Architecture
 
@@ -472,14 +472,13 @@ Backend states:
 - Review updates must be idempotent per request id.
 - SQLite initialization must be automatic at app startup.
 
-## Migration Strategy
+## Final Frontend Strategy
 
-1. Keep Streamlit as `legacy` and do not remove tests yet.
-2. Build React frontend against existing FastAPI endpoints.
-3. Add missing review/report/trace endpoints.
-4. Normalize SQLite tables while preserving `payload_json`.
-5. Update README to mark React as primary control cabin and Streamlit as fallback.
-6. Once React reaches feature parity, optionally remove Streamlit dependencies in a later cleanup.
+1. React + TypeScript + Vite is the only control cabin UI.
+2. FastAPI is the only workflow, persistence, upload, review, report, and email boundary.
+3. SQLite stores normalized run, trace, report, review, batch, and email-delivery records while preserving full JSON payloads.
+4. README and project plan document React/FastAPI as the canonical local demo path.
+5. Any future production UI work should extend React instead of adding a second UI runtime.
 
 ## Testing Strategy
 
@@ -506,8 +505,8 @@ Backend states:
 
 ### Do
 
-- Use React as the primary UI and FastAPI as the only workflow boundary.
-- Keep Streamlit during migration as a known-good demo path.
+- Use React as the UI and FastAPI as the only workflow boundary.
+- Keep report preview, review submission, and email delivery in the same operator flow.
 - Make evidence and trace visible beside scores.
 - Use one blue accent for actions.
 - Use compact, stable tables and panels.
@@ -519,12 +518,11 @@ Backend states:
 - Don't build a marketing landing page as the first screen.
 - Don't hide model limitations; the risk model predicts manual-review need only.
 - Don't use decorative gradients, oversized cards, or one-note purple/blue dashboards.
-- Don't remove Streamlit until React has feature parity and tests.
+- Don't add a second control-cabin runtime unless there is a clear production requirement.
 
 ## Known Gaps
 
-- File upload endpoint is not yet implemented in FastAPI; current API accepts resume text or server-side file paths.
 - API is synchronous; large batch runs may need background jobs later.
 - Authentication and authorization are not in scope for this migration step.
 - SQLite is suitable for local demo and small deployments; PostgreSQL should be the next step for multi-user production.
-- React screenshots are not available until implementation begins.
+- The current React app is functional, but it can still be expanded with filtering, batch detail pages, and email delivery history.

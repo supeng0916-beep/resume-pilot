@@ -86,4 +86,31 @@ describe("api client", () => {
     );
     expect(result.batch_report).toBe("# upload");
   });
+
+  it("sends report email through FastAPI", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 1,
+        request_id: "run-001",
+        recipient: "hr@example.com",
+        subject: "报告",
+        sent: true,
+        message: "sent"
+      })
+    });
+    const client = createApiClient({ baseUrl: "http://api.test", fetchImpl: fetchMock });
+
+    const delivery = await client.sendReportEmail({
+      request_id: "run-001",
+      recipient: "hr@example.com",
+      subject: "报告"
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://api.test/emails/report",
+      expect.objectContaining({ method: "POST" })
+    );
+    expect(delivery.sent).toBe(true);
+  });
 });

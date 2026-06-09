@@ -7,6 +7,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
+from core.email_sender import send_report_email
 from core.persistence import SQLiteRunStore
 from harness.batch_runner import BatchResumeInput, run_batch_evaluation
 from harness.runner import run_evaluation
@@ -44,6 +45,13 @@ class ReviewRequest(BaseModel):
     decision: str = Field(min_length=1)
     feedback: str | None = None
     reviewer: str | None = None
+
+
+class EmailReportRequest(BaseModel):
+    recipient: str = Field(min_length=1)
+    subject: str | None = None
+    request_id: str | None = None
+    report_markdown: str | None = None
 
 
 def _safe_upload_filename(filename: str) -> str:
@@ -190,6 +198,39 @@ def create_app(
             )
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/emails/report")
+    def send_report(request: EmailReportRequest) -> dict[str, Any]:
+        report_markdown = request.report_markdown
+        source_request_id = request.request_id.strip() if request.request_id else None
+        if not report_markdown and source_request_id:
+            saved_report = run_store.get_report(source_request_id)
+            if saved_report is None:
+                raise HTTPException(status_code=404, detail="report not found")
+            report_markdown = saved_report.get("markdown")
+        if not report_markdown:
+            raise HTTPException(status_code=400, detail="report content is required")
+
+        subject = request.subject or (
+            f"Agentic HR 候选人评估报告 - {source_request_id}" if source_request_id else "Agentic HR 候选人评估报告"
+        )
+        result = send_report_email(
+            recipient=request.recipient,
+            subject=subject,
+            report_markdown=report_markdown,
+            attachment_name=f"{source_request_id or 'agentic-hr-report'}.md",
+        )
+        return run_store.save_email_delivery(
+            request_id=source_request_id,
+            recipient=request.recipient,
+            subject=subject,
+            sent=result.sent,
+            message=result.message,
+        )
+
+    @app.get("/emails/deliveries")
+    def list_email_deliveries(limit: int = 50) -> dict[str, Any]:
+        return {"deliveries": run_store.list_email_deliveries(limit=limit)}
 
     @app.get("/runs/{request_id}")
     def get_run(request_id: str) -> dict[str, Any]:

@@ -1,1 +1,0 @@
-"""Control cabin UI package."""

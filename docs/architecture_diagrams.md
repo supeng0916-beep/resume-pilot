@@ -174,6 +174,7 @@ erDiagram
     workflow_runs ||--o{ traces : records
     workflow_runs ||--o| reports : produces
     workflow_runs ||--o{ reviews : receives
+    workflow_runs ||--o{ email_deliveries : sends
     batches ||--o{ batch_runs : contains
     workflow_runs ||--o{ batch_runs : belongs_to
 
@@ -225,6 +226,15 @@ erDiagram
         string decision
         string feedback
         string reviewer
+    }
+
+    email_deliveries {
+        int id PK
+        string request_id FK
+        string recipient
+        string subject
+        bool sent
+        string message
     }
 
     batches {

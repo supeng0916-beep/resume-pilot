@@ -19,8 +19,12 @@ function splitResumeTexts(value: string) {
 }
 
 export function BatchEvaluationPage({ isRunning, onSubmit, onUploadSubmit }: BatchEvaluationPageProps) {
-  const [requestId, setRequestId] = useState(`react-batch-${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "")}`);
-  const [jdText, setJdText] = useState("后端工程师，要求熟悉 Python、FastAPI、Redis，有项目落地经验。");
+  const [requestId, setRequestId] = useState(
+    `react-batch-${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "")}`
+  );
+  const [jdText, setJdText] = useState(
+    "后端工程师，要求熟悉 Python、FastAPI、Redis，有项目落地经验，能和业务团队沟通需求。"
+  );
   const [resumeTexts, setResumeTexts] = useState(
     "候选人 Alice，本科，参与过 Python FastAPI Redis 项目，期望薪资 18k。\n---\n候选人 Bob，硕士，做过 PyTorch 与 SQL 数据管道项目，期望薪资 32k。"
   );

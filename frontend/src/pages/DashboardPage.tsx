@@ -26,20 +26,20 @@ export function DashboardPage({ health, runs, batches, error, onSelectRun }: Das
         <div>
           <p className="eyebrow">招聘官工作台</p>
           <h1>招聘评估工作台</h1>
-          <p className="page-subtitle">集中查看候选人批次、AI 初筛结果、风险提示和人工复核队列。</p>
+          <p className="page-subtitle">
+            集中查看候选人批次、AI 初筛结果、风险提示、证据链和人工复核队列。
+          </p>
         </div>
-        <a className="button-primary" href="#new-batch">创建评估批次</a>
+        <a className="button-primary" href="#new-batch">
+          创建评估批次
+        </a>
       </div>
 
       {error ? <div className="alert">{error}</div> : null}
 
-      <section className="metric-grid" aria-label="Run metrics">
+      <section className="metric-grid" aria-label="招聘评估指标">
         <MetricTile icon={<BriefcaseBusiness size={18} />} label="候选人记录" value={runs.length} />
-        <MetricTile
-          icon={<ShieldCheck size={18} />}
-          label="今日待复核"
-          value={pendingReviewCount}
-        />
+        <MetricTile icon={<ShieldCheck size={18} />} label="今日待复核" value={pendingReviewCount} />
         <MetricTile icon={<Layers3 size={18} />} label="候选人批次" value={batches.length} />
         <MetricTile icon={<Database size={18} />} label="平均匹配分" value={averageMatchScore} />
       </section>
@@ -48,9 +48,9 @@ export function DashboardPage({ health, runs, batches, error, onSelectRun }: Das
         <div className="panel__header">
           <div>
             <h2>最近评估批次</h2>
-            <p>按批次追踪岗位评估进度，快速进入 Top 候选人详情。</p>
+            <p>按批次追踪岗位评估进度，快速进入优先候选人的详情页。</p>
           </div>
-          <StatusChip>{health?.storage === "sqlite" ? "本地归档" : "已连接后端"}</StatusChip>
+          <StatusChip>{health?.storage === "sqlite" ? "SQLite 持久化" : "后端连接中"}</StatusChip>
         </div>
         <div className="table-wrap">
           <table>
@@ -65,7 +65,7 @@ export function DashboardPage({ health, runs, batches, error, onSelectRun }: Das
             <tbody>
               {batches.length === 0 ? (
                 <tr>
-                  <td colSpan={4}>暂无评估批次。创建一次批量评估后，这里会显示候选人批次。</td>
+                  <td colSpan={4}>暂无评估批次。创建一次批量评估后，这里会展示候选人批次。</td>
                 </tr>
               ) : (
                 batches.map((batch) => (
@@ -98,7 +98,7 @@ export function DashboardPage({ health, runs, batches, error, onSelectRun }: Das
         <div className="panel__header">
           <div>
             <h2>候选人评估记录</h2>
-            <p>查看每位候选人的匹配分、风险分和复核状态。</p>
+            <p>查看每位候选人的匹配分、风险分、复核状态和完整评估报告。</p>
           </div>
           <StatusChip>AI 初筛结果</StatusChip>
         </div>

@@ -159,3 +159,62 @@ def test_api_filters_and_pages_runs(tmp_path) -> None:
     paged = client.get("/runs", params={"limit": 1, "offset": 1})
     assert paged.status_code == 200
     assert len(paged.json()["runs"]) == 1
+
+
+def test_api_sends_persisted_report_email_and_records_delivery(tmp_path, monkeypatch) -> None:
+    store = SQLiteRunStore(tmp_path / "runs.db")
+    store.save_workflow_result(
+        {
+            "request_id": "email-run-001",
+            "current_step": "human_review",
+            "match_score": 88,
+            "risk_score": 0.2,
+            "human_review_status": "pending",
+            "trace": [],
+            "report": "# Email report",
+        }
+    )
+
+    def fake_send_report_email(**kwargs):
+        class Result:
+            sent = True
+            message = "sent for test"
+
+        assert kwargs["recipient"] == "hr@example.com"
+        assert kwargs["report_markdown"] == "# Email report"
+        return Result()
+
+    monkeypatch.setattr("api.server.send_report_email", fake_send_report_email)
+    app = create_app(store=store)
+    client = TestClient(app)
+
+    response = client.post(
+        "/emails/report",
+        json={
+            "request_id": "email-run-001",
+            "recipient": "hr@example.com",
+            "subject": "候选人评估报告",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["sent"] is True
+    assert payload["request_id"] == "email-run-001"
+
+    deliveries = client.get("/emails/deliveries").json()["deliveries"]
+    assert deliveries[0]["recipient"] == "hr@example.com"
+    assert deliveries[0]["message"] == "sent for test"
+
+
+def test_api_rejects_email_without_report_content(tmp_path) -> None:
+    app = create_app(store=SQLiteRunStore(tmp_path / "runs.db"))
+    client = TestClient(app)
+
+    response = client.post(
+        "/emails/report",
+        json={"recipient": "hr@example.com"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "report content is required"

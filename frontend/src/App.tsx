@@ -113,12 +113,23 @@ export default function App() {
     }
   }
 
+  async function sendReportEmail(request: { request_id: string; recipient: string; subject: string }) {
+    return api.sendReportEmail(request);
+  }
+
   return (
     <AppShell health={health}>
       <DashboardPage health={health} runs={runs} batches={batches} error={error} onSelectRun={selectRun} />
       <BatchEvaluationPage isRunning={isRunning} onSubmit={runBatch} onUploadSubmit={uploadBatch} />
       <ReviewQueuePage runs={runs} onSubmitReview={submitReview} />
-      {selectedRun ? <RunDetailPage run={selectedRun} trace={selectedTrace} report={selectedReport} /> : null}
+      {selectedRun ? (
+        <RunDetailPage
+          run={selectedRun}
+          trace={selectedTrace}
+          report={selectedReport}
+          onSendReportEmail={sendReportEmail}
+        />
+      ) : null}
     </AppShell>
   );
 }

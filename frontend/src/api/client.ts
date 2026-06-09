@@ -2,6 +2,8 @@ import type {
   BatchEvaluationRequest,
   BatchEvaluationResult,
   BatchSummary,
+  EmailDelivery,
+  EmailReportRequest,
   HealthResponse,
   Report,
   Review,
@@ -25,6 +27,7 @@ export interface ApiClient {
   listReviews(): Promise<Review[]>;
   createBatchEvaluation(request: BatchEvaluationRequest): Promise<BatchEvaluationResult>;
   uploadBatchEvaluation(request: UploadBatchEvaluationRequest): Promise<BatchEvaluationResult>;
+  sendReportEmail(request: EmailReportRequest): Promise<EmailDelivery>;
   saveReview(
     requestId: string,
     review: { decision: string; feedback?: string; reviewer?: string }
@@ -103,6 +106,15 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
         await fetchImpl(endpoint(baseUrl, "/batch-evaluations/uploads"), {
           method: "POST",
           body: formData
+        })
+      );
+    },
+    async sendReportEmail(request) {
+      return readJson<EmailDelivery>(
+        await fetchImpl(endpoint(baseUrl, "/emails/report"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(request)
         })
       );
     },

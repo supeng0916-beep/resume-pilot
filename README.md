@@ -1,61 +1,148 @@
 # Agentic HR
 
-LangGraph-based multi-agent recruitment evaluation workflow.
+基于 LangGraph 的多 Agent 招聘评估系统，采用 Hub-and-Spoke 工作流、FastAPI 服务层、SQLite 持久化和 React 控制舱。项目定位是“可演示、可解释、可继续落地”的工程原型，不是直接替代人工招聘决策的生产系统。
+
+## Current Status
+
+当前版本已经完成核心闭环：PDF/文本简历解析、简历与 JD 抽取、校验、分轨匹配评分、人工复核风险预测、报告生成、trace/replay/batch harness、SQLite 持久化、FastAPI API、React 控制舱、邮件发送入口、Docker 和 CI。
+
+仍建议作为后续生产化增强的部分：
+
+- 多用户部署时将 SQLite 替换为 PostgreSQL。
+- 增加登录鉴权、角色权限和审计策略。
+- 对长耗时 OCR/LLM 批处理引入 Redis + 异步任务队列。
+- 用真实脱敏简历补充人工标注数据。
+- 接入 hosted tracing、监控和告警。
 
 ## Quick Start
 
+安装 Python 依赖：
+
 ```powershell
 python -m pip install -r requirements.txt
-D:\python\python.exe main.py
 ```
 
-Run with a resume PDF:
+安装前端依赖：
 
 ```powershell
-D:\python\python.exe main.py --resume data\examples\candidate.pdf
+cd frontend
+npm install
+cd ..
 ```
 
-Run with a custom JD:
-
-```powershell
-D:\python\python.exe main.py --resume data\examples\candidate.pdf --jd "招聘 Python 后端工程师，要求熟悉 FastAPI、PostgreSQL、Redis。"
-```
-
-Run a batch evaluation and save a Markdown report:
-
-```powershell
-D:\python\python.exe main.py --resume data\examples\candidate-a.pdf --resume data\examples\candidate-b.pdf --jd "校招 AI 工程师，要求 Python、机器学习和项目经历。" --output data\test_outputs\batch_report.md
-```
-
-For faster batch runs when LLM is enabled:
-
-```powershell
-D:\python\python.exe main.py --resume data\examples\candidate-a.pdf --resume data\examples\candidate-b.pdf --jd "校招 AI 工程师，要求 Python、机器学习和项目经历。" --disable-llm-report-enhancement
-```
-
-Start the local control cabin:
+一键启动 React 控制舱和 FastAPI：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\start_control_cabin.ps1
 ```
 
-Open:
+打开控制舱：
 
 ```text
-http://127.0.0.1:8501
+http://127.0.0.1:5173
 ```
 
-The Streamlit cabin is now kept as the legacy demo surface. The primary frontend direction is the React control cabin in `frontend/`.
-
-Stop the local control cabin after testing:
+停止控制舱：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\stop_control_cabin.ps1
 ```
 
-If you run `D:\python\python.exe -m streamlit run app\streamlit_app.py` directly, the terminal will stay occupied because Streamlit is a long-running web server. That is expected behavior, not a hang.
+## CLI Usage
 
-Send batch reports from the control cabin by configuring SMTP environment variables:
+运行内置示例：
+
+```powershell
+D:\python\python.exe main.py
+```
+
+指定简历 PDF：
+
+```powershell
+D:\python\python.exe main.py --resume data\examples\candidate.pdf
+```
+
+指定 JD：
+
+```powershell
+D:\python\python.exe main.py --resume data\examples\candidate.pdf --jd "招聘 Python 后端工程师，要求熟悉 FastAPI、PostgreSQL、Redis。"
+```
+
+批量评估并保存 Markdown 报告：
+
+```powershell
+D:\python\python.exe main.py --resume data\examples\candidate-a.pdf --resume data\examples\candidate-b.pdf --jd "校招 AI 工程师，要求 Python、机器学习和项目经历。" --output data\test_outputs\batch_report.md
+```
+
+LLM 开启时如需更快批处理，可关闭逐候选人报告增强：
+
+```powershell
+D:\python\python.exe main.py --resume data\examples\candidate-a.pdf --resume data\examples\candidate-b.pdf --jd "校招 AI 工程师，要求 Python、机器学习和项目经历。" --disable-llm-report-enhancement
+```
+
+## FastAPI Service
+
+单独启动后端：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start_api.ps1
+```
+
+API 文档：
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+运行一次评估：
+
+```powershell
+curl -X POST http://127.0.0.1:8000/evaluations `
+  -H "Content-Type: application/json" `
+  -d "{\"request_id\":\"api-demo-001\",\"resume_text\":\"Candidate Alice. Python FastAPI Redis project.\",\"jd_text\":\"Backend engineer requires Python, FastAPI and Redis.\",\"risk_model_path\":\"models/review_risk_model.json\"}"
+```
+
+查询持久化结果：
+
+```powershell
+curl http://127.0.0.1:8000/runs/api-demo-001
+curl "http://127.0.0.1:8000/runs?status=pending&limit=20&offset=0"
+curl "http://127.0.0.1:8000/batches?limit=20&offset=0"
+```
+
+## React Control Cabin
+
+React 是唯一控制舱前端，位于 `frontend/`。它只通过 HTTP 调用 FastAPI，不直接读取本地文件、不调用 Python workflow、不写 SQLite。
+
+已支持：
+
+- 后端健康检查与 SQLite 状态展示。
+- 文本简历批量评估。
+- PDF/文本简历上传评估。
+- 最近批次、候选人记录、运行详情。
+- trace 时间线与 Markdown 报告预览。
+- 人工复核提交。
+- 候选人报告邮件发送。
+
+开发模式：
+
+```powershell
+cd frontend
+npm run dev
+```
+
+生产构建：
+
+```powershell
+cd frontend
+npm run build
+```
+
+FastAPI 会在 `frontend/dist` 存在时托管构建后的 React 应用。
+
+## Email Delivery
+
+邮件发送通过 FastAPI 的 `POST /emails/report` 完成，React 控制舱在候选人详情页调用该接口。SMTP 配置来自环境变量或本地 `.env`，不要提交 `.env`。
 
 ```powershell
 $env:HR_SMTP_HOST="smtp.example.com"
@@ -66,200 +153,37 @@ $env:HR_SMTP_FROM="your-email@example.com"
 $env:HR_SMTP_USE_SSL="true"
 ```
 
-If SMTP is not configured, the control cabin will keep the report available for preview and download without sending email.
+如果 SMTP 未配置，接口会返回“未发送”的结果并记录到 SQLite `email_deliveries` 表，报告仍可在控制舱预览。
 
-The current version runs an end-to-end LangGraph HR evaluation workflow with batch ranking, OCR fallback, replay harness, human review, report export, SQLite run persistence, a FastAPI service layer, a Streamlit control cabin, and optional email delivery. It still runs without a real LLM or trained cloud model by default.
+## Dataset And ML
 
-## Current Status
-
-The project is complete enough for resume, interview, and local demo use. The core workflow, harness layer, PDF parsing path, optional LLM extraction/reporting, synthetic dataset, manual-review risk model, FastAPI service, SQLite persistence, React control cabin, Docker build, and CI checks are implemented.
-
-Remaining production hardening items are intentionally scoped as future work:
-
-- Replace local SQLite with PostgreSQL when multi-user deployment is required.
-- Add API authentication and role-based review permissions before exposing the service publicly.
-- Add an async job queue for long-running OCR/LLM batch workloads.
-- Add real redacted resume annotations to complement the synthetic dataset.
-- Add monitoring/exported traces for hosted environments.
-
-In its current form the system should be presented as a production-oriented engineering prototype, not as a deployed recruiting decision product.
-
-## FastAPI Service
-
-Start the API service:
+生成合成结构化数据：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\start_api.ps1
+D:\python\python.exe scripts\generate_dataset.py --output-dir data\datasets --count 500 --seed 42
 ```
 
-Open:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-Run one evaluation through the backend layer:
-
-```powershell
-curl -X POST http://127.0.0.1:8000/evaluations `
-  -H "Content-Type: application/json" `
-  -d "{\"request_id\":\"api-demo-001\",\"resume_text\":\"Candidate Alice. Python FastAPI Redis project.\",\"jd_text\":\"Backend engineer requires Python, FastAPI and Redis.\",\"risk_model_path\":\"models/review_risk_model.json\"}"
-```
-
-The service persists workflow runs to `data/hr_runs.sqlite3` by default. The database is ignored by git. Query a saved run:
-
-```powershell
-curl http://127.0.0.1:8000/runs/api-demo-001
-```
-
-Query persisted lists with pagination and review-status filtering:
-
-```powershell
-curl "http://127.0.0.1:8000/runs?status=pending&limit=20&offset=0"
-curl "http://127.0.0.1:8000/batches?limit=20&offset=0"
-curl http://127.0.0.1:8000/batches/upload-batch-001
-```
-
-## React Control Cabin
-
-The React frontend is the new primary control cabin. It talks to FastAPI through HTTP and does not import Python workflow code directly.
-
-Start FastAPI first:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\start_api.ps1
-```
-
-Then start the React dev server:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\start_react_cabin.ps1
-```
-
-Open:
-
-```text
-http://127.0.0.1:5173
-```
-
-Frontend checks:
-
-```powershell
-cd frontend
-npm test -- --run
-npm run build
-```
-
-The current React cabin includes the app shell, health indicator, persisted run metrics, batch archive metrics, recent batch table, recent run table, and reusable detail components for trace/report views. It is intentionally API-first; new UI features should be backed by FastAPI endpoints rather than direct workflow calls.
-
-The React cabin can run a demo batch from pasted resume text or uploaded resume files. Separate pasted resumes with a line containing `---`. The upload control calls FastAPI's multipart endpoint:
-
-```text
-POST /batch-evaluations/uploads
-```
-
-Accepted upload files:
-
-- `.txt` / `.md`: read as resume text directly.
-- `.pdf`: saved under `data/api_uploads/` and passed through the document parser.
-
-Uploaded files are ignored by git.
-
-Batch runs are now stored in normalized SQLite tables as `batches` plus `batch_runs`, while each candidate run still keeps the full workflow payload for replay and debugging.
-
-## Docker
-
-Build and run the React + FastAPI demo without copying local secrets into the image:
-
-```powershell
-docker build -t agentic-hr .
-docker run --rm -p 8000:8000 --env-file .env agentic-hr
-```
-
-If you do not need LLM, OCR, or SMTP integrations, omit `--env-file .env`.
-
-Open:
-
-```text
-http://127.0.0.1:8000
-```
-
-The Docker image builds the React frontend in a Node stage, then serves the built `frontend/dist` through FastAPI. Local OCR dependencies stay optional in `requirements-ocr.txt` because EasyOCR/PaddleOCR are large and can make demo builds slow.
-
-## Testing
-
-Run the full regression suite:
-
-```powershell
-D:\python\python.exe -m pytest -q
-```
-
-Run frontend tests and build:
-
-```powershell
-cd frontend
-npm test -- --run
-npm run build
-```
-
-Run the control-cabin focused tests:
-
-```powershell
-D:\python\python.exe -m pytest tests\test_control_cabin.py tests\test_batch_runner.py -q
-```
-
-Run the LLM extraction evaluation harness. The committed sample cases include rule output, simulated LLM output, and golden answers so the report format is reproducible without calling a paid model:
-
-```powershell
-D:\python\python.exe scripts\run_llm_eval.py --cases data\datasets\extraction_eval_cases.jsonl --output data\test_outputs\llm_extraction_eval_report.md
-```
-
-The report compares rule extraction vs LLM extraction against the standard answer on field accuracy and skill F1.
-
-## Dataset and Annotation
-
-Generate a synthetic structured dataset for training, regression checks, and Colab experiments:
-
-```powershell
-D:\python\python.exe scripts\generate_dataset.py --output-dir data\datasets --count 60 --seed 42
-```
-
-The generator writes JSONL files:
+数据文件：
 
 - `data/datasets/synthetic_candidates.jsonl`
 - `data/datasets/synthetic_jobs.jsonl`
 - `data/datasets/synthetic_labels.jsonl`
-- `data/datasets/example_redacted_candidates.jsonl` is a committed redacted sample format.
-- `data/datasets/extraction_eval_cases.jsonl` is the committed extraction-eval harness sample.
+- `data/datasets/example_redacted_candidates.jsonl`
+- `data/datasets/extraction_eval_cases.jsonl`
 
-Open the lightweight annotation cabin:
-
-```powershell
-D:\python\python.exe -m streamlit run app\annotation_cabin.py
-```
-
-Manual annotations are appended to `data/datasets/annotations.jsonl`. The recommended ML target is `needs_human_review`, not a direct hiring decision. See `docs/annotation_guideline.md` for label definitions and Colab handoff notes.
-
-See `docs/data_schema.md` for JSONL schemas, privacy boundaries, and the SQLite persistence shape. See `docs/ml_pipeline.md` for the manual-review risk model training and deployment flow.
-
-See `docs/architecture_diagrams.md` for Mermaid diagrams covering the system context, Hub-and-Spoke workflow, harness layer, frontend/backend split, persistence schema, and production async Redis evolution.
-
-Train the lightweight manual-review risk model:
+训练人工复核风险模型：
 
 ```powershell
 D:\python\python.exe scripts\train_review_risk_model.py --dataset-dir data\datasets --output models\review_risk_model.json --model-card models\model_card_review_risk.md
 ```
 
-The repository includes a demo `models\review_risk_model.json` trained on the 500-row synthetic dataset, plus `models\model_card_review_risk.md`. The model predicts whether a case needs human review. It is a process-risk model, not a hiring prediction model. Use it in CLI or the control cabin by setting the risk model path to `models\review_risk_model.json`.
+当前提交包含基于 500 条合成数据训练的 `models/review_risk_model.json` 和模型卡 `models/model_card_review_risk.md`。该模型预测“是否需要人工复核”，不是预测录用结果。
 
-The risk node supports two JSON model families:
+人工标注建议参见 `docs/annotation_guideline.md`。数据结构参见 `docs/data_schema.md`。ML 流程参见 `docs/ml_pipeline.md`。
 
-- `logistic_risk_v1`: legacy synthetic risk score model.
-- `review_risk_logistic_v1`: recommended manual-review risk model trained from `data/datasets/*.jsonl`.
+## LLM Enhancement
 
-## Optional LLM Enhancement
-
-The report writer can append an LLM-assisted summary and interview-question enhancement. It is disabled by default. Create a local `.env` file in the project root and keep it out of git:
+LLM 能力默认可选。创建本地 `.env` 并保持不入 git：
 
 ```powershell
 HR_LLM_ENABLED=true
@@ -274,13 +198,51 @@ HR_ENABLE_LOCAL_OCR=false
 HR_OCR_TIMEOUT_SECONDS=12
 ```
 
-`HR_LLM_BASE_URL` expects an OpenAI-compatible Chat Completions endpoint. If the LLM is disabled, missing config, or the request fails, the deterministic report is still generated. For image-only PDFs, the parser defaults to `vision_first` and keeps local OCR disabled to avoid slow batch uploads. Set `HR_ENABLE_LOCAL_OCR=true` if you want EasyOCR/PaddleOCR fallback, with `HR_OCR_TIMEOUT_SECONDS` as the soft timeout.
+如果 LLM 关闭、配置缺失或请求失败，系统会回退到规则抽取和确定性报告。图片型 PDF 默认使用 Vision LLM 优先策略，必要时可开启本地 OCR fallback。
 
-The Streamlit control cabin disables per-candidate LLM report enhancement by default to keep batch uploads responsive. Turn on "逐候选人 LLM 报告增强" in the sidebar when you want richer individual reports.
+## Harness And Evaluation
 
-## HR Tools
+运行全量测试：
 
-Reusable tool adapters live in `tools/hr_tools.py`. They wrap existing capabilities so future LLM agents can call them through a stable tool boundary:
+```powershell
+D:\python\python.exe -m pytest -q
+```
+
+运行前端测试和构建：
+
+```powershell
+cd frontend
+npm test -- --run
+npm run build
+```
+
+运行控制舱相关后端测试：
+
+```powershell
+D:\python\python.exe -m pytest tests\test_control_cabin.py tests\test_batch_runner.py tests\test_api_server.py -q
+```
+
+运行 LLM 抽取评估 harness：
+
+```powershell
+D:\python\python.exe scripts\run_llm_eval.py --cases data\datasets\extraction_eval_cases.jsonl --output data\test_outputs\llm_extraction_eval_report.md
+```
+
+## Architecture
+
+架构图参见 `docs/architecture_diagrams.md`，覆盖：
+
+- 系统上下文。
+- Hub-and-Spoke agent workflow。
+- Agent、Node、Tool、Harness 边界。
+- React/FastAPI 前后端分层。
+- SQLite 持久化模型。
+- 数据与 ML 闭环。
+- Redis 异步队列的生产演进方案。
+
+## Tool Boundary
+
+可复用工具适配器位于 `tools/hr_tools.py`：
 
 - `parse_resume_pdf`
 - `extract_resume_profile`
@@ -288,13 +250,3 @@ Reusable tool adapters live in `tools/hr_tools.py`. They wrap existing capabilit
 - `run_batch_evaluation`
 - `save_batch_report`
 - `send_report_email`
-
-## OCR for Scanned Resumes
-
-Image-only PDF resumes are detected with `needs_ocr=True`. The parser has optional local OCR adapters. EasyOCR is used first on the current Windows demo environment, with PaddleOCR kept as an additional provider:
-
-```powershell
-python -m pip install -r requirements-ocr.txt
-```
-
-When OCR dependencies are available, scanned PDFs are rendered page by page and passed through local OCR. If OCR dependencies or model files are not available, the workflow keeps running and marks the candidate for OCR/manual review instead of ranking them as a reliable match.

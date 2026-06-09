@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from app.control_cabin import save_batch_report
+from core.control_cabin import save_batch_report
 from core.document_parser import parse_pdf
 from core.email_sender import send_report_email
 from core.job_parser import parse_jd_text

@@ -1,56 +1,67 @@
 param(
-    [int]$Port = 8501
+    [int]$ApiPort = 8000,
+    [int]$FrontendPort = 5173
 )
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $Python = "D:\python\python.exe"
 $LogDir = Join-Path $ProjectRoot "data\test_outputs"
-$OutLog = Join-Path $LogDir "streamlit_control_cabin.out.log"
-$ErrLog = Join-Path $LogDir "streamlit_control_cabin.err.log"
+$ApiOutLog = Join-Path $LogDir "fastapi_control_cabin.out.log"
+$ApiErrLog = Join-Path $LogDir "fastapi_control_cabin.err.log"
+$FrontendOutLog = Join-Path $LogDir "react_control_cabin.out.log"
+$FrontendErrLog = Join-Path $LogDir "react_control_cabin.err.log"
 
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
-$existing = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($existing) {
-    Write-Host "Control cabin is already listening on http://127.0.0.1:$Port"
-    Write-Host "PID: $($existing.OwningProcess)"
-    exit 0
+function Test-PortListening {
+    param([int]$Port)
+    return [bool](Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1)
 }
 
-$env:STREAMLIT_BROWSER_GATHER_USAGE_STATS = "false"
-$env:PYTHONIOENCODING = "utf-8"
+if (-not (Test-PortListening -Port $ApiPort)) {
+    Start-Process `
+        -FilePath $Python `
+        -ArgumentList @("-m", "uvicorn", "api.server:app", "--host", "127.0.0.1", "--port", "$ApiPort") `
+        -WorkingDirectory $ProjectRoot `
+        -RedirectStandardOutput $ApiOutLog `
+        -RedirectStandardError $ApiErrLog `
+        -WindowStyle Hidden `
+        -PassThru | Out-Null
+}
 
-$arguments = @(
-    "-m", "streamlit", "run", "app\streamlit_app.py",
-    "--server.port", "$Port",
-    "--server.address", "127.0.0.1",
-    "--server.headless", "true",
-    "--browser.gatherUsageStats", "false"
-)
+$FrontendRoot = Join-Path $ProjectRoot "frontend"
+if (-not (Test-Path (Join-Path $FrontendRoot "node_modules"))) {
+    Push-Location $FrontendRoot
+    try {
+        npm install
+    }
+    finally {
+        Pop-Location
+    }
+}
 
-$process = Start-Process `
-    -FilePath $Python `
-    -ArgumentList $arguments `
-    -WorkingDirectory $ProjectRoot `
-    -RedirectStandardOutput $OutLog `
-    -RedirectStandardError $ErrLog `
-    -WindowStyle Hidden `
-    -PassThru
+if (-not (Test-PortListening -Port $FrontendPort)) {
+    Start-Process `
+        -FilePath "npm" `
+        -ArgumentList @("run", "dev", "--", "--host", "127.0.0.1", "--port", "$FrontendPort") `
+        -WorkingDirectory $FrontendRoot `
+        -RedirectStandardOutput $FrontendOutLog `
+        -RedirectStandardError $FrontendErrLog `
+        -WindowStyle Hidden `
+        -PassThru | Out-Null
+}
 
 Start-Sleep -Seconds 3
 
-$started = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($started) {
-    Write-Host "Control cabin started: http://127.0.0.1:$Port"
-    Write-Host "PID: $($started.OwningProcess)"
-    Write-Host "Logs: $OutLog"
+if ((Test-PortListening -Port $ApiPort) -and (Test-PortListening -Port $FrontendPort)) {
+    Write-Host "React control cabin started: http://127.0.0.1:$FrontendPort"
+    Write-Host "FastAPI started: http://127.0.0.1:$ApiPort"
+    Write-Host "Logs: $LogDir"
     exit 0
 }
 
-Write-Warning "Streamlit process was started but port $Port is not listening yet."
-Write-Warning "Process ID: $($process.Id)"
-Write-Warning "Check logs:"
-Write-Warning $OutLog
-Write-Warning $ErrLog
+Write-Warning "Control cabin did not finish starting."
+Write-Warning "FastAPI logs: $ApiOutLog / $ApiErrLog"
+Write-Warning "React logs: $FrontendOutLog / $FrontendErrLog"
 exit 1

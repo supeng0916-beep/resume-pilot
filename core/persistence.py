@@ -124,6 +124,20 @@ class SQLiteRunStore:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS email_deliveries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    request_id TEXT,
+                    recipient TEXT NOT NULL,
+                    subject TEXT NOT NULL,
+                    sent INTEGER NOT NULL,
+                    message TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(request_id) REFERENCES workflow_runs(request_id)
+                )
+                """
+            )
 
     def save_workflow_result(self, result: dict[str, Any]) -> None:
         self.initialize()
@@ -540,6 +554,50 @@ class SQLiteRunStore:
             ).fetchall()
         return [self._review_row_to_dict(row) for row in rows]
 
+    def save_email_delivery(
+        self,
+        *,
+        recipient: str,
+        subject: str,
+        sent: bool,
+        message: str,
+        request_id: str | None = None,
+    ) -> dict[str, Any]:
+        self.initialize()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO email_deliveries (
+                    request_id,
+                    recipient,
+                    subject,
+                    sent,
+                    message
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (request_id, recipient, subject, 1 if sent else 0, message),
+            )
+            row = connection.execute(
+                "SELECT * FROM email_deliveries WHERE id = ?",
+                (cursor.lastrowid,),
+            ).fetchone()
+        return self._email_delivery_row_to_dict(row)
+
+    def list_email_deliveries(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        self.initialize()
+        safe_limit = max(1, min(int(limit), 200))
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM email_deliveries
+                ORDER BY created_at DESC, id DESC
+                LIMIT ?
+                """,
+                (safe_limit,),
+            ).fetchall()
+        return [self._email_delivery_row_to_dict(row) for row in rows]
+
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.db_path)
         connection.row_factory = sqlite3.Row
@@ -580,4 +638,16 @@ class SQLiteRunStore:
             "ranked_candidates": json.loads(row["ranked_candidates_json"]),
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
+        }
+
+    @staticmethod
+    def _email_delivery_row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
+        return {
+            "id": row["id"],
+            "request_id": row["request_id"],
+            "recipient": row["recipient"],
+            "subject": row["subject"],
+            "sent": bool(row["sent"]),
+            "message": row["message"],
+            "created_at": row["created_at"],
         }

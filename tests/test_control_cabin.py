@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.control_cabin import (
+from core.control_cabin import (
     apply_human_review,
     build_detail_summary,
     build_evidence_rows,
