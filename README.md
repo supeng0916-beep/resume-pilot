@@ -66,7 +66,35 @@ $env:HR_SMTP_USE_SSL="true"
 
 If SMTP is not configured, the control cabin will keep the report available for preview and download without sending email.
 
-The current version runs an end-to-end LangGraph HR evaluation workflow with batch ranking, OCR fallback, replay harness, human review, report export, a Streamlit control cabin, and optional email delivery. It still runs without a real LLM, database, or trained cloud model by default.
+The current version runs an end-to-end LangGraph HR evaluation workflow with batch ranking, OCR fallback, replay harness, human review, report export, SQLite run persistence, a FastAPI service layer, a Streamlit control cabin, and optional email delivery. It still runs without a real LLM or trained cloud model by default.
+
+## FastAPI Service
+
+Start the API service:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start_api.ps1
+```
+
+Open:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Run one evaluation through the backend layer:
+
+```powershell
+curl -X POST http://127.0.0.1:8000/evaluations `
+  -H "Content-Type: application/json" `
+  -d "{\"request_id\":\"api-demo-001\",\"resume_text\":\"Candidate Alice. Python FastAPI Redis project.\",\"jd_text\":\"Backend engineer requires Python, FastAPI and Redis.\",\"risk_model_path\":\"models/review_risk_model.json\"}"
+```
+
+The service persists workflow runs to `data/hr_runs.sqlite3` by default. The database is ignored by git. Query a saved run:
+
+```powershell
+curl http://127.0.0.1:8000/runs/api-demo-001
+```
 
 ## Docker
 
@@ -95,6 +123,14 @@ Run the control-cabin focused tests:
 D:\python\python.exe -m pytest tests\test_control_cabin.py tests\test_batch_runner.py -q
 ```
 
+Run the LLM extraction evaluation harness. The committed sample cases include rule output, simulated LLM output, and golden answers so the report format is reproducible without calling a paid model:
+
+```powershell
+D:\python\python.exe scripts\run_llm_eval.py --cases data\datasets\extraction_eval_cases.jsonl --output data\test_outputs\llm_extraction_eval_report.md
+```
+
+The report compares rule extraction vs LLM extraction against the standard answer on field accuracy and skill F1.
+
 ## Dataset and Annotation
 
 Generate a synthetic structured dataset for training, regression checks, and Colab experiments:
@@ -108,6 +144,8 @@ The generator writes JSONL files:
 - `data/datasets/synthetic_candidates.jsonl`
 - `data/datasets/synthetic_jobs.jsonl`
 - `data/datasets/synthetic_labels.jsonl`
+- `data/datasets/example_redacted_candidates.jsonl` is a committed redacted sample format.
+- `data/datasets/extraction_eval_cases.jsonl` is the committed extraction-eval harness sample.
 
 Open the lightweight annotation cabin:
 
@@ -116,6 +154,8 @@ D:\python\python.exe -m streamlit run app\annotation_cabin.py
 ```
 
 Manual annotations are appended to `data/datasets/annotations.jsonl`. The recommended ML target is `needs_human_review`, not a direct hiring decision. See `docs/annotation_guideline.md` for label definitions and Colab handoff notes.
+
+See `docs/data_schema.md` for JSONL schemas, privacy boundaries, and the SQLite persistence shape. See `docs/ml_pipeline.md` for the manual-review risk model training and deployment flow.
 
 Train the lightweight manual-review risk model:
 
