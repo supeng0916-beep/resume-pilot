@@ -95,6 +95,28 @@ Run the control-cabin focused tests:
 D:\python\python.exe -m pytest tests\test_control_cabin.py tests\test_batch_runner.py -q
 ```
 
+## Dataset and Annotation
+
+Generate a synthetic structured dataset for training, regression checks, and Colab experiments:
+
+```powershell
+D:\python\python.exe scripts\generate_dataset.py --output-dir data\datasets --count 60 --seed 42
+```
+
+The generator writes JSONL files:
+
+- `data/datasets/synthetic_candidates.jsonl`
+- `data/datasets/synthetic_jobs.jsonl`
+- `data/datasets/synthetic_labels.jsonl`
+
+Open the lightweight annotation cabin:
+
+```powershell
+D:\python\python.exe -m streamlit run app\annotation_cabin.py
+```
+
+Manual annotations are appended to `data/datasets/annotations.jsonl`. The recommended ML target is `needs_human_review`, not a direct hiring decision. See `docs/annotation_guideline.md` for label definitions and Colab handoff notes.
+
 ## Optional LLM Enhancement
 
 The report writer can append an LLM-assisted summary and interview-question enhancement. It is disabled by default. Create a local `.env` file in the project root and keep it out of git:

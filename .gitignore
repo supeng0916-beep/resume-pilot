@@ -17,6 +17,9 @@ models/*.pkl
 models/*.json
 memory/review_feedback.json
 data/*.csv
+data/datasets/annotations.jsonl
+data/datasets/raw/
+data/datasets/redacted/
 data/examples/*.pdf
 data/model_cache/
 data/replay_cases/
