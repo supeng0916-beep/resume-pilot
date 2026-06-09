@@ -70,6 +70,20 @@ If SMTP is not configured, the control cabin will keep the report available for 
 
 The current version runs an end-to-end LangGraph HR evaluation workflow with batch ranking, OCR fallback, replay harness, human review, report export, SQLite run persistence, a FastAPI service layer, a Streamlit control cabin, and optional email delivery. It still runs without a real LLM or trained cloud model by default.
 
+## Current Status
+
+The project is complete enough for resume, interview, and local demo use. The core workflow, harness layer, PDF parsing path, optional LLM extraction/reporting, synthetic dataset, manual-review risk model, FastAPI service, SQLite persistence, React control cabin, Docker build, and CI checks are implemented.
+
+Remaining production hardening items are intentionally scoped as future work:
+
+- Replace local SQLite with PostgreSQL when multi-user deployment is required.
+- Add API authentication and role-based review permissions before exposing the service publicly.
+- Add an async job queue for long-running OCR/LLM batch workloads.
+- Add real redacted resume annotations to complement the synthetic dataset.
+- Add monitoring/exported traces for hosted environments.
+
+In its current form the system should be presented as a production-oriented engineering prototype, not as a deployed recruiting decision product.
+
 ## FastAPI Service
 
 Start the API service:
