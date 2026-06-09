@@ -36,7 +36,7 @@ export function ReviewQueuePage({ runs, onSubmitReview }: ReviewQueuePageProps) 
     <section className="panel" id="reviews">
       <div className="panel__header">
         <h2>Review queue</h2>
-        <StatusChip>{pendingRuns.length} pending</StatusChip>
+        <StatusChip>{`${pendingRuns.length} pending`}</StatusChip>
       </div>
 
       {pendingRuns.length === 0 ? (
