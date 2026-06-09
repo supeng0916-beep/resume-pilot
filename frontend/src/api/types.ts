@@ -36,6 +36,40 @@ export interface Review {
   created_at?: string;
 }
 
+export interface BatchResumeRequest {
+  candidate_id: string;
+  resume_text?: string;
+  resume_file_path?: string;
+}
+
+export interface BatchEvaluationRequest {
+  request_id: string;
+  resumes: BatchResumeRequest[];
+  jd_text?: string;
+  risk_model_path?: string;
+  enable_llm_structured_extraction?: boolean;
+  enable_llm_report_enhancement?: boolean;
+}
+
+export interface RankedCandidate {
+  candidate_id: string;
+  request_id: string;
+  name?: string;
+  track?: string;
+  match_score?: number | null;
+  risk_score?: number | null;
+  rank_score?: number | null;
+  evidence_confidence?: number | null;
+  review_reasons?: string[];
+}
+
+export interface BatchEvaluationResult {
+  request_id: string;
+  candidate_count: number;
+  ranked_candidates: RankedCandidate[];
+  batch_report: string;
+}
+
 export interface HealthResponse {
   status: string;
   storage: string;

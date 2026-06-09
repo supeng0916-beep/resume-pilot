@@ -118,6 +118,9 @@ h2 {
 }
 
 .button-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 38px;
   border: 0;
   border-radius: var(--radius-pill);
@@ -135,6 +138,20 @@ h2 {
 
 .button-primary:active {
   transform: scale(0.97);
+}
+
+.button-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.link-button {
+  border: 0;
+  padding: 0;
+  color: var(--color-primary);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
 }
 
 .alert {
@@ -180,6 +197,7 @@ h2 {
 
 .panel {
   padding: 16px;
+  margin-bottom: 16px;
 }
 
 .panel__header {
@@ -270,6 +288,87 @@ h2 {
   white-space: pre-wrap;
 }
 
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.review-form {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 14px;
+}
+
+.review-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.review-form select,
+.review-form textarea {
+  width: 100%;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  font: 400 14px/1.4 var(--font-ui);
+}
+
+.review-form .wide {
+  grid-column: 1 / -1;
+}
+
+.form-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.form-grid input,
+.form-grid textarea {
+  width: 100%;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  font: 400 14px/1.4 var(--font-ui);
+}
+
+.form-grid textarea {
+  resize: vertical;
+}
+
+.form-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.checkbox-row {
+  display: flex !important;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-ink) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+.checkbox-row input {
+  width: auto;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -297,5 +396,13 @@ th {
   .page-heading {
     align-items: start;
     flex-direction: column;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .review-form {
+    grid-template-columns: 1fr;
   }
 }

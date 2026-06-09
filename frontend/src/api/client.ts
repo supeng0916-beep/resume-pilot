@@ -1,4 +1,12 @@
-import type { HealthResponse, Report, Review, TraceEvent, WorkflowRun } from "./types";
+import type {
+  BatchEvaluationRequest,
+  BatchEvaluationResult,
+  HealthResponse,
+  Report,
+  Review,
+  TraceEvent,
+  WorkflowRun
+} from "./types";
 
 export interface ApiClientOptions {
   baseUrl?: string;
@@ -12,6 +20,7 @@ export interface ApiClient {
   getTrace(requestId: string): Promise<TraceEvent[]>;
   getReport(requestId: string): Promise<Report>;
   listReviews(): Promise<Review[]>;
+  createBatchEvaluation(request: BatchEvaluationRequest): Promise<BatchEvaluationResult>;
   saveReview(
     requestId: string,
     review: { decision: string; feedback?: string; reviewer?: string }
@@ -56,6 +65,15 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     async listReviews() {
       const payload = await readJson<{ reviews: Review[] }>(await fetchImpl(endpoint(baseUrl, "/reviews")));
       return payload.reviews;
+    },
+    async createBatchEvaluation(request) {
+      return readJson<BatchEvaluationResult>(
+        await fetchImpl(endpoint(baseUrl, "/batch-evaluations"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(request)
+        })
+      );
     },
     async saveReview(requestId, review) {
       return readJson<Review>(

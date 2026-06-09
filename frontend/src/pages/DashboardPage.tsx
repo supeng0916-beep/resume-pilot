@@ -7,9 +7,10 @@ interface DashboardPageProps {
   health: HealthResponse | null;
   runs: WorkflowRun[];
   error: string | null;
+  onSelectRun: (requestId: string) => void;
 }
 
-export function DashboardPage({ health, runs, error }: DashboardPageProps) {
+export function DashboardPage({ health, runs, error, onSelectRun }: DashboardPageProps) {
   return (
     <>
       <div className="page-heading">
@@ -17,7 +18,7 @@ export function DashboardPage({ health, runs, error }: DashboardPageProps) {
           <p className="eyebrow">Primary frontend</p>
           <h1>Evaluation cockpit</h1>
         </div>
-        <button className="button-primary" type="button">New batch</button>
+        <a className="button-primary" href="#new-batch">New batch</a>
       </div>
 
       {error ? <div className="alert">{error}</div> : null}
@@ -56,7 +57,11 @@ export function DashboardPage({ health, runs, error }: DashboardPageProps) {
               ) : (
                 runs.map((run) => (
                   <tr key={run.request_id}>
-                    <td>{run.request_id}</td>
+                    <td>
+                      <button className="link-button" type="button" onClick={() => onSelectRun(run.request_id)}>
+                        {run.request_id}
+                      </button>
+                    </td>
                     <td>{run.current_step ?? "-"}</td>
                     <td>{run.match_score ?? "-"}</td>
                     <td>{run.risk_score ?? "-"}</td>
