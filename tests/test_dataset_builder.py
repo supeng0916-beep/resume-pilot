@@ -37,6 +37,39 @@ def test_generate_synthetic_dataset_has_usable_review_label_balance() -> None:
     assert 0.35 <= positive_rate <= 0.75
 
 
+def test_generate_synthetic_dataset_has_realistic_salary_and_experience_distribution() -> None:
+    dataset = generate_synthetic_dataset(count=500, seed=42)
+    candidates = dataset.candidates
+
+    salaries = [candidate["expected_salary_k"] for candidate in candidates]
+    years = [candidate["years_experience"] for candidate in candidates]
+    zero_year_rate = sum(year == 0 for year in years) / len(years)
+
+    assert min(salaries) >= 8
+    assert max(salaries) <= 50
+    assert min(years) == 0
+    assert max(years) <= 10
+    assert zero_year_rate >= 0.28
+
+
+def test_generate_synthetic_dataset_correlates_education_with_expected_salary() -> None:
+    dataset = generate_synthetic_dataset(count=500, seed=42)
+    salaries_by_education = {
+        education: [
+            candidate["expected_salary_k"]
+            for candidate in dataset.candidates
+            if candidate["education"] == education
+        ]
+        for education in ["大专", "本科", "硕士"]
+    }
+    average_salary = {
+        education: sum(values) / len(values)
+        for education, values in salaries_by_education.items()
+    }
+
+    assert average_salary["大专"] < average_salary["本科"] < average_salary["硕士"]
+
+
 def test_write_and_load_jsonl_round_trip(tmp_path: Path) -> None:
     rows = [{"id": "one", "value": 1}, {"id": "two", "value": 2}]
     output_path = tmp_path / "rows.jsonl"

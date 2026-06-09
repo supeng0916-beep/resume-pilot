@@ -76,29 +76,63 @@ def _build_jobs() -> list[dict[str, Any]]:
     ]
 
 
+def _sample_years_experience(job: dict[str, Any], rng: random.Random) -> int:
+    if job["track"] == "intern":
+        return 0
+    if job["track"] == "campus":
+        return rng.choices([0, 1, 2], weights=[7, 2, 1], k=1)[0]
+    required_years = int(job.get("required_years") or 0)
+    years = round(rng.triangular(0, 10, max(required_years, 3)))
+    return max(0, min(10, years))
+
+
+def _sample_expected_salary_k(
+    *,
+    education: str,
+    years_experience: int,
+    job: dict[str, Any],
+    rng: random.Random,
+) -> int:
+    education_premium = {
+        "大专": -2,
+        "本科": 3,
+        "硕士": 8,
+    }[education]
+    track_base = {
+        "intern": 8,
+        "campus": 14,
+        "experienced": 18,
+    }[job["track"]]
+    market_pressure = rng.randint(-3, 6)
+    salary = track_base + education_premium + years_experience * 2.2 + market_pressure
+    return int(max(8, min(50, round(salary))))
+
+
 def _candidate_for_job(index: int, job: dict[str, Any], rng: random.Random) -> dict[str, Any]:
     required_skills = list(job["required_skills"])
     bonus_skills = list(job["bonus_skills"])
     skill_pool = [*required_skills, *bonus_skills, "Git", "Linux", "数据结构", "沟通协作"]
     matched_count = rng.randint(1, len(required_skills))
     skills = sorted(set(rng.sample(required_skills, matched_count) + rng.sample(skill_pool, rng.randint(1, 3))))
-    years = max(0, int(rng.gauss(job["required_years"], 1.5)))
-    if job["track"] == "campus":
-        years = rng.choice([0, 0, 1])
-    if job["track"] == "intern":
-        years = 0
+    years = _sample_years_experience(job, rng)
+    education = rng.choices(["大专", "本科", "硕士"], weights=[2, 5, 3], k=1)[0]
 
     project_skill = rng.choice(skills)
     evidence_quality = rng.choices(EVIDENCE_QUALITIES, weights=[5, 4, 1, 1], k=1)[0]
     parse_quality = round(rng.betavariate(6, 2) * 0.44 + 0.55, 2)
-    expected_salary = rng.randint(max(1, job["salary_min_k"] - 5), job["salary_max_k"] + 5)
+    expected_salary = _sample_expected_salary_k(
+        education=education,
+        years_experience=years,
+        job=job,
+        rng=rng,
+    )
 
     return {
         "candidate_id": f"cand_{index:04d}",
         "resume_id": f"resume_{index:04d}",
         "name": f"脱敏候选人{index:04d}",
         "track": job["track"] if rng.random() > 0.12 else "unknown",
-        "education": rng.choice(["本科", "硕士", "大专"]),
+        "education": education,
         "major": rng.choice(["计算机科学与技术", "软件工程", "人工智能", "统计学", "信息管理"]),
         "years_experience": years,
         "skills": skills,
