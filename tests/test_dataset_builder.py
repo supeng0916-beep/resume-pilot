@@ -29,6 +29,14 @@ def test_generate_synthetic_dataset_is_deterministic_and_linked() -> None:
         assert isinstance(label["needs_human_review"], bool)
 
 
+def test_generate_synthetic_dataset_has_usable_review_label_balance() -> None:
+    dataset = generate_synthetic_dataset(count=500, seed=42)
+
+    positive_rate = sum(label["needs_human_review"] for label in dataset.labels) / len(dataset.labels)
+
+    assert 0.35 <= positive_rate <= 0.75
+
+
 def test_write_and_load_jsonl_round_trip(tmp_path: Path) -> None:
     rows = [{"id": "one", "value": 1}, {"id": "two", "value": 2}]
     output_path = tmp_path / "rows.jsonl"

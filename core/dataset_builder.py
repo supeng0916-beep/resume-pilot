@@ -89,9 +89,9 @@ def _candidate_for_job(index: int, job: dict[str, Any], rng: random.Random) -> d
         years = 0
 
     project_skill = rng.choice(skills)
-    evidence_quality = rng.choices(EVIDENCE_QUALITIES, weights=[4, 3, 2, 1], k=1)[0]
-    parse_quality = round(rng.uniform(0.55, 0.99), 2)
-    expected_salary = rng.randint(max(1, job["salary_min_k"] - 5), job["salary_max_k"] + 10)
+    evidence_quality = rng.choices(EVIDENCE_QUALITIES, weights=[5, 4, 1, 1], k=1)[0]
+    parse_quality = round(rng.betavariate(6, 2) * 0.44 + 0.55, 2)
+    expected_salary = rng.randint(max(1, job["salary_min_k"] - 5), job["salary_max_k"] + 5)
 
     return {
         "candidate_id": f"cand_{index:04d}",
@@ -129,9 +129,9 @@ def _label_for(candidate: dict[str, Any], job: dict[str, Any]) -> dict[str, Any]
         match_label = "weak_match"
 
     risk_labels: list[str] = []
-    if candidate["parse_quality_score"] < 0.7:
+    if candidate["parse_quality_score"] < 0.65:
         risk_labels.append("parse_low_quality")
-    if candidate["expected_salary_k"] >= job["salary_max_k"] * 0.9:
+    if candidate["expected_salary_k"] > job["salary_max_k"]:
         risk_labels.append("salary_pressure")
     if candidate["years_experience"] < job["required_years"]:
         risk_labels.append("experience_gap")
