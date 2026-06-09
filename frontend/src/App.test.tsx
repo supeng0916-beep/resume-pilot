@@ -39,9 +39,9 @@ describe("App", () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText("react-run-001")).toBeInTheDocument());
-    expect(screen.getByText("Evaluation cockpit")).toBeInTheDocument();
-    expect(screen.getByText("Persisted runs")).toBeInTheDocument();
-    expect(screen.getByText("Pending review")).toBeInTheDocument();
+    expect(screen.getByText("招聘评估控制舱")).toBeInTheDocument();
+    expect(screen.getByText("已持久化运行")).toBeInTheDocument();
+    expect(screen.getByText("待人工复核")).toBeInTheDocument();
     expect(screen.getByText("human_review")).toBeInTheDocument();
   });
 });

@@ -6,6 +6,6 @@ interface ReportPreviewProps {
 
 export function ReportPreview({ report }: ReportPreviewProps) {
   return (
-    <pre className="report-preview">{report?.markdown || "No report persisted for this run."}</pre>
+    <pre className="report-preview">{report?.markdown || "当前运行暂无持久化报告。"}</pre>
   );
 }

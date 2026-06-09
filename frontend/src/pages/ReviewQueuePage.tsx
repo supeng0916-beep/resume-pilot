@@ -35,16 +35,16 @@ export function ReviewQueuePage({ runs, onSubmitReview }: ReviewQueuePageProps) 
   return (
     <section className="panel" id="reviews">
       <div className="panel__header">
-        <h2>Review queue</h2>
-        <StatusChip>{`${pendingRuns.length} pending`}</StatusChip>
+        <h2>人工复核队列</h2>
+        <StatusChip>{`${pendingRuns.length} 个待复核`}</StatusChip>
       </div>
 
       {pendingRuns.length === 0 ? (
-        <p className="empty">No pending manual review runs.</p>
+        <p className="empty">当前没有待人工复核的运行。</p>
       ) : (
         <form className="review-form" onSubmit={submitReview}>
           <label>
-            <span>Run</span>
+            <span>运行记录</span>
             <select value={selectedRequestId} onChange={(event) => setSelectedRequestId(event.target.value)}>
               {pendingRuns.map((run) => (
                 <option value={run.request_id} key={run.request_id}>
@@ -54,8 +54,8 @@ export function ReviewQueuePage({ runs, onSubmitReview }: ReviewQueuePageProps) 
             </select>
           </label>
           <label>
-            <span>Decision</span>
-            <select aria-label="Decision" value={decision} onChange={(event) => setDecision(event.target.value)}>
+            <span>复核结论</span>
+            <select aria-label="复核结论" value={decision} onChange={(event) => setDecision(event.target.value)}>
               <option value="approve">approve</option>
               <option value="reject">reject</option>
               <option value="revise">revise</option>
@@ -63,9 +63,9 @@ export function ReviewQueuePage({ runs, onSubmitReview }: ReviewQueuePageProps) 
             </select>
           </label>
           <label className="wide">
-            <span>Feedback</span>
+            <span>复核反馈</span>
             <textarea
-              aria-label="Feedback"
+              aria-label="复核反馈"
               value={feedback}
               rows={3}
               onChange={(event) => setFeedback(event.target.value)}
@@ -73,7 +73,7 @@ export function ReviewQueuePage({ runs, onSubmitReview }: ReviewQueuePageProps) 
           </label>
           <div className="form-actions wide">
             <button className="button-primary" type="submit" disabled={isSaving || !selectedRequestId}>
-              {isSaving ? "Saving..." : "Save review"}
+              {isSaving ? "保存中..." : "保存复核"}
             </button>
           </div>
         </form>

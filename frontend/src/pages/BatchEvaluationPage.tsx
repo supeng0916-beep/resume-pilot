@@ -56,23 +56,23 @@ export function BatchEvaluationPage({ isRunning, onSubmit, onUploadSubmit }: Bat
   return (
     <section className="panel" id="new-batch">
       <div className="panel__header">
-        <h2>New batch evaluation</h2>
+        <h2>新建批量评估</h2>
       </div>
       <form className="form-grid" onSubmit={submitForm}>
         <label>
-          <span>Request ID</span>
+          <span>请求 ID</span>
           <input value={requestId} onChange={(event) => setRequestId(event.target.value)} />
         </label>
         <label>
-          <span>Risk model path</span>
+          <span>风险模型路径</span>
           <input value={riskModelPath} onChange={(event) => setRiskModelPath(event.target.value)} />
         </label>
         <label className="wide">
-          <span>Job description</span>
+          <span>岗位 JD</span>
           <textarea value={jdText} onChange={(event) => setJdText(event.target.value)} rows={4} />
         </label>
         <label className="wide">
-          <span>Resume texts</span>
+          <span>简历文本</span>
           <textarea value={resumeTexts} onChange={(event) => setResumeTexts(event.target.value)} rows={7} />
         </label>
         <label className="checkbox-row">
@@ -81,7 +81,7 @@ export function BatchEvaluationPage({ isRunning, onSubmit, onUploadSubmit }: Bat
             checked={enableLlmExtraction}
             onChange={(event) => setEnableLlmExtraction(event.target.checked)}
           />
-          <span>Enable LLM structured extraction</span>
+          <span>启用 LLM 结构化抽取</span>
         </label>
         <label className="checkbox-row">
           <input
@@ -89,19 +89,19 @@ export function BatchEvaluationPage({ isRunning, onSubmit, onUploadSubmit }: Bat
             checked={enableLlmReport}
             onChange={(event) => setEnableLlmReport(event.target.checked)}
           />
-          <span>Enable LLM report enhancement</span>
+          <span>启用 LLM 报告增强</span>
         </label>
         <div className="form-actions wide">
           <button className="button-primary" type="submit" disabled={isRunning || splitResumeTexts(resumeTexts).length === 0}>
-            {isRunning ? "Running..." : "Run batch"}
+            {isRunning ? "评估中..." : "运行批量评估"}
           </button>
         </div>
       </form>
       <form className="upload-form" onSubmit={submitUpload}>
         <label className="wide">
-          <span>Resume files</span>
+          <span>简历文件</span>
           <input
-            aria-label="Resume files"
+            aria-label="简历文件"
             type="file"
             accept=".txt,.md,.pdf"
             multiple
@@ -109,11 +109,11 @@ export function BatchEvaluationPage({ isRunning, onSubmit, onUploadSubmit }: Bat
           />
         </label>
         <div className="upload-summary">
-          {files.length ? `${files.length} file(s) selected` : "Upload .txt, .md, or .pdf resumes"}
+          {files.length ? `已选择 ${files.length} 个文件` : "上传 .txt、.md 或 .pdf 简历"}
         </div>
         <div className="form-actions">
           <button className="button-secondary" type="submit" disabled={isRunning || files.length === 0}>
-            Upload and run
+            上传并评估
           </button>
         </div>
       </form>

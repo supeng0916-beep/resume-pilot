@@ -7,12 +7,12 @@ describe("BatchEvaluationPage", () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(<BatchEvaluationPage onSubmit={onSubmit} onUploadSubmit={vi.fn()} isRunning={false} />);
 
-    fireEvent.change(screen.getByLabelText("Request ID"), { target: { value: "batch-ui-001" } });
-    fireEvent.change(screen.getByLabelText("Job description"), { target: { value: "Backend requires Python" } });
-    fireEvent.change(screen.getByLabelText("Resume texts"), {
+    fireEvent.change(screen.getByLabelText("请求 ID"), { target: { value: "batch-ui-001" } });
+    fireEvent.change(screen.getByLabelText("岗位 JD"), { target: { value: "Backend requires Python" } });
+    fireEvent.change(screen.getByLabelText("简历文本"), {
       target: { value: "Alice Python FastAPI\n---\nBob React TypeScript" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "Run batch" }));
+    fireEvent.click(screen.getByRole("button", { name: "运行批量评估" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit).toHaveBeenCalledWith({
@@ -34,8 +34,8 @@ describe("BatchEvaluationPage", () => {
     render(<BatchEvaluationPage onSubmit={onSubmit} onUploadSubmit={onUploadSubmit} isRunning={false} />);
     const file = new File(["Alice Python"], "alice.txt", { type: "text/plain" });
 
-    fireEvent.change(screen.getByLabelText("Resume files"), { target: { files: [file] } });
-    fireEvent.click(screen.getByRole("button", { name: "Upload and run" }));
+    fireEvent.change(screen.getByLabelText("简历文件"), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole("button", { name: "上传并评估" }));
 
     await waitFor(() => expect(onUploadSubmit).toHaveBeenCalledTimes(1));
     expect(onUploadSubmit).toHaveBeenCalledWith(

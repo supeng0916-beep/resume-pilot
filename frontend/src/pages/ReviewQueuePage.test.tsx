@@ -12,9 +12,9 @@ describe("ReviewQueuePage", () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText("Decision"), { target: { value: "approve" } });
-    fireEvent.change(screen.getByLabelText("Feedback"), { target: { value: "Evidence checked." } });
-    fireEvent.click(screen.getByRole("button", { name: "Save review" }));
+    fireEvent.change(screen.getByLabelText("复核结论"), { target: { value: "approve" } });
+    fireEvent.change(screen.getByLabelText("复核反馈"), { target: { value: "Evidence checked." } });
+    fireEvent.click(screen.getByRole("button", { name: "保存复核" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit).toHaveBeenCalledWith("review-001", {

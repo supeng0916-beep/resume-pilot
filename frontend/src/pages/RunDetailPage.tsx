@@ -19,15 +19,15 @@ export function RunDetailPage({ run, trace, report }: RunDetailPageProps) {
         </div>
         <dl className="detail-grid">
           <div>
-            <dt>Current step</dt>
+            <dt>当前步骤</dt>
             <dd>{run.current_step ?? "-"}</dd>
           </div>
           <div>
-            <dt>Match</dt>
+            <dt>匹配分</dt>
             <dd>{run.match_score ?? "-"}</dd>
           </div>
           <div>
-            <dt>Risk</dt>
+            <dt>风险分</dt>
             <dd>{run.risk_score ?? "-"}</dd>
           </div>
         </dl>
@@ -35,14 +35,14 @@ export function RunDetailPage({ run, trace, report }: RunDetailPageProps) {
 
       <section className="panel" id="trace">
         <div className="panel__header">
-          <h2>Trace timeline</h2>
+          <h2>Trace 时间线</h2>
         </div>
         <TraceTimeline trace={trace} />
       </section>
 
       <section className="panel">
         <div className="panel__header">
-          <h2>Report</h2>
+          <h2>评估报告</h2>
         </div>
         <ReportPreview report={report} />
       </section>

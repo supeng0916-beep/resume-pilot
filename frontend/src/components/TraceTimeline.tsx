@@ -8,13 +8,13 @@ export function TraceTimeline({ trace }: TraceTimelineProps) {
   return (
     <div className="timeline">
       {trace.length === 0 ? (
-        <p className="empty">No trace events persisted.</p>
+        <p className="empty">暂无持久化 Trace 事件。</p>
       ) : (
         trace.map((event, index) => (
           <article className="timeline-item" key={`${event.node ?? "node"}-${index}`}>
             <strong>{event.node ?? "unknown_node"}</strong>
-            <span>{event.timestamp ?? "no timestamp"}</span>
-            <p>{event.output_summary ?? "No summary"}</p>
+            <span>{event.timestamp ?? "无时间戳"}</span>
+            <p>{event.output_summary ?? "暂无摘要"}</p>
           </article>
         ))
       )}
