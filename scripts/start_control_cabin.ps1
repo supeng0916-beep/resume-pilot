@@ -19,37 +19,6 @@ function Test-PortListening {
     return [bool](Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1)
 }
 
-function Stop-PortProcess {
-    param([int]$Port)
-    $connections = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
-    $processIds = $connections | Select-Object -ExpandProperty OwningProcess -Unique
-    foreach ($processId in $processIds) {
-        $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
-        if ($process) {
-            Stop-Process -Id $processId -Force
-            Write-Host "Stopped stale PID $processId on port $Port."
-        }
-    }
-}
-
-function Test-ApiPrefixHealthy {
-    param([int]$Port)
-    try {
-        $response = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/api/health" -UseBasicParsing -TimeoutSec 3
-        $contentType = [string]$response.Headers["Content-Type"]
-        return $response.StatusCode -eq 200 -and $contentType.StartsWith("application/json")
-    }
-    catch {
-        return $false
-    }
-}
-
-if ((Test-PortListening -Port $ApiPort) -and -not (Test-ApiPrefixHealthy -Port $ApiPort)) {
-    Write-Host "Existing FastAPI process does not serve /api/health as JSON. Restarting it."
-    Stop-PortProcess -Port $ApiPort
-    Start-Sleep -Seconds 1
-}
-
 if (-not (Test-PortListening -Port $ApiPort)) {
     Start-Process `
         -FilePath $Python `
@@ -57,7 +26,6 @@ if (-not (Test-PortListening -Port $ApiPort)) {
         -WorkingDirectory $ProjectRoot `
         -RedirectStandardOutput $ApiOutLog `
         -RedirectStandardError $ApiErrLog `
-        -WindowStyle Hidden `
         -PassThru | Out-Null
 }
 
@@ -79,7 +47,6 @@ if (-not (Test-PortListening -Port $FrontendPort)) {
         -WorkingDirectory $FrontendRoot `
         -RedirectStandardOutput $FrontendOutLog `
         -RedirectStandardError $FrontendErrLog `
-        -WindowStyle Hidden `
         -PassThru | Out-Null
 }
 

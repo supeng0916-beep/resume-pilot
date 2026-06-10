@@ -22,6 +22,12 @@
 python -m pip install -r requirements.txt
 ```
 
+如需启用本地 OCR fallback，再安装可选 OCR 依赖；默认演示链路不需要安装这些重型包：
+
+```powershell
+python -m pip install -r requirements-ocr.txt
+```
+
 安装前端依赖：
 
 ```powershell
