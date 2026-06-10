@@ -19,7 +19,8 @@ class UploadedResume(Protocol):
 
 
 def safe_uploaded_filename(filename: str) -> str:
-    safe_name = Path(filename).name.strip().replace("\x00", "")
+    normalized = filename.replace("\\", "/")
+    safe_name = Path(normalized).name.strip().replace("\x00", "")
     return safe_name or "resume.pdf"
 
 

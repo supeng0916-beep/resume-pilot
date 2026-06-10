@@ -7,6 +7,10 @@ venv/
 env/
 
 .env
+PROJECT_PLAN.md
+DESIGN-apple.md
+DESIGN-react-control-cabin.md
+docs/superpowers/
 .pytest_cache/
 pytest-cache-files-*/
 .pytest_tmp/
