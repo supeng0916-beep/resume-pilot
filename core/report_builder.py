@@ -88,6 +88,24 @@ def _build_memory_reference_lines(state: WorkflowState) -> list[str]:
     ]
 
 
+def _build_agent_collaboration_lines(state: WorkflowState) -> list[str]:
+    lines: list[str] = []
+    candidate_insights = state.get("candidate_insights") or {}
+    job_insights = state.get("job_insights") or {}
+    final_recommendation = state.get("final_recommendation") or {}
+
+    for item in candidate_insights.get("strengths", [])[:2]:
+        lines.append(f"Candidate Analyst：{item}")
+    for item in candidate_insights.get("gaps", [])[:2]:
+        lines.append(f"Candidate Analyst Gap：{item}")
+    for item in job_insights.get("priorities", [])[:2]:
+        lines.append(f"Job Analyst：{item}")
+    if final_recommendation.get("rationale"):
+        lines.append(f"Reporting Agent：{final_recommendation['rationale']}")
+
+    return lines or ["Supervisor 已完成任务编排，并将结果汇总到最终评估中。"]
+
+
 def build_report_model(state: WorkflowState) -> EvaluationReport:
     candidate = state.get("candidate_profile") or {}
     job = state.get("job_profile") or {}
@@ -145,6 +163,9 @@ def render_markdown_report(state: WorkflowState) -> str:
         "",
         "## 历史 HR 反馈参考",
         *[f"- {item}" for item in _build_memory_reference_lines(state)],
+        "",
+        "## Agent 协作摘要",
+        *[f"- {item}" for item in _build_agent_collaboration_lines(state)],
         "",
         "## 人工复核提示",
         f"- 候选人类型判断：{candidate.get('candidate_track', 'unknown')}，置信度 {candidate.get('track_confidence', 0)}。",

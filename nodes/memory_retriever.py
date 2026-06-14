@@ -13,6 +13,12 @@ def memory_retriever_node(state: WorkflowState) -> WorkflowState:
     memory_path = state.get("feedback_memory_path") or DEFAULT_FEEDBACK_MEMORY_PATH
     records = retrieve_feedback_records(state, path=memory_path)
     summaries = summarize_feedback_records(records)
+    agent_outputs = dict(state.get("agent_outputs") or {})
+    agent_outputs["memory_agent"] = {
+        "memory_path": memory_path,
+        "memory_count": len(records),
+        "used_feedback_memory": bool(summaries),
+    }
 
     if summaries:
         output_summary = f"Retrieved {len(summaries)} job-specific human feedback memories."
@@ -22,6 +28,7 @@ def memory_retriever_node(state: WorkflowState) -> WorkflowState:
     return {
         "feedback_memory_records": records,
         "feedback_memory_summaries": summaries,
+        "agent_outputs": agent_outputs,
         "current_step": "memory_retriever",
         "trace": add_trace(
             state,

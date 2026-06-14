@@ -65,3 +65,4 @@ def test_memory_retriever_reads_job_specific_feedback() -> None:
     assert "历史 HR 反馈参考" in result["report"]
     assert "不直接参与自动评分" in result["report"]
     assert any(item["node"] == "memory_retriever" for item in result["trace"])
+    assert result["agent_outputs"]["memory_agent"]["memory_count"] == 1

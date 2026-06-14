@@ -17,6 +17,7 @@ def test_report_contains_structured_sections() -> None:
     assert "## 风险点" in report
     assert "## 证据引用" in report
     assert "## 建议面试问题" in report
+    assert "## Agent 协作摘要" in report
     assert "## 人工复核提示" in report
 
 

@@ -1,0 +1,42 @@
+from __future__ import annotations
+
+from core.state import WorkflowState
+from harness.trace import add_trace
+
+
+def reporting_agent_node(state: WorkflowState) -> WorkflowState:
+    match_score = float(state.get("match_score") or 0)
+    risk_score = state.get("risk_score")
+    recommendation = "advance"
+    rationale = "Strong match with manageable delivery risk."
+
+    if match_score < 60:
+        recommendation = "reject"
+        rationale = "Overall match is low relative to the target role requirements."
+    elif risk_score is not None and risk_score >= 0.5:
+        recommendation = "need_more_info"
+        rationale = "Candidate fit is promising but risk signals require human validation."
+    elif match_score < 75:
+        recommendation = "need_more_info"
+        rationale = "Candidate shows partial fit and needs deeper interview verification."
+
+    final_recommendation = {
+        "recommendation": recommendation,
+        "rationale": rationale,
+        "match_score": match_score,
+        "risk_score": risk_score,
+    }
+    agent_outputs = dict(state.get("agent_outputs") or {})
+    agent_outputs["reporting_agent"] = final_recommendation
+
+    return {
+        "final_recommendation": final_recommendation,
+        "agent_outputs": agent_outputs,
+        "current_step": "reporting_agent",
+        "trace": add_trace(
+            state,
+            "reporting_agent",
+            "Reporting agent consolidated match and risk into a final recommendation.",
+            final_recommendation,
+        ),
+    }

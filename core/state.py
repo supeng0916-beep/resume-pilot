@@ -5,6 +5,7 @@ from typing import Any, TypedDict
 
 class WorkflowState(TypedDict, total=False):
     request_id: str
+    request_type: str | None
     resume_file_path: str | None
     resume_text: str
     jd_text: str
@@ -41,6 +42,12 @@ class WorkflowState(TypedDict, total=False):
     feedback_memory_record: dict[str, Any] | None
     feedback_memory_records: list[dict[str, Any]]
     feedback_memory_summaries: list[str]
+    active_agents: list[str]
+    supervisor_plan: dict[str, Any] | None
+    agent_outputs: dict[str, Any]
+    candidate_insights: dict[str, Any] | None
+    job_insights: dict[str, Any] | None
+    final_recommendation: dict[str, Any] | None
 
     current_step: str
     errors: list[str]

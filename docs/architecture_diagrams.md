@@ -28,57 +28,65 @@ flowchart LR
     API -.可选.-> SMTP
 ```
 
-## 2. Hub-and-Spoke Agent 工作流
+## 2. Supervisor-Centered Hub-and-Spoke Agent Workflow
 
 ```mermaid
 flowchart TD
     Start(["Start"])
-    Hub["Orchestrator / Hub<br/>状态路由、错误处理、复核决策"]
-    Parser["Document Parser Node<br/>PDF 文本解析 / 质量评分 / OCR 标记"]
-    Resume["Resume Extraction Agent<br/>规则抽取 + 可选 LLM 抽取"]
-    JD["JD Extraction Agent<br/>岗位要求结构化"]
-    Validator["Validation Node<br/>Pydantic Schema 校验"]
-    Retry{"校验是否通过？"}
-    Rubric["Rubric Selector<br/>校招 / 社招 / 实习分轨"]
-    Match["Matching Node<br/>技能、年限、学历、薪资、证据评分"]
-    Risk["Risk Evaluator<br/>人工复核风险预测"]
-    Report["Report Agent<br/>生成招聘评估报告"]
-    Review["Human Review Node<br/>人工审批与反馈沉淀"]
+    Hub["Supervisor Agent / Hub<br/>task planning, agent routing, review decisions"]
+    Parser["Document Parser Node<br/>PDF parsing / quality check / OCR flag"]
+    Resume["Resume Extraction Agent<br/>rules + optional LLM extraction"]
+    JD["JD Extraction Agent<br/>job requirement structuring"]
+    Validator["Validation Node<br/>Pydantic schema validation"]
+    Retry{"Validation passed?"}
+    CandidateAgent["Candidate Analyst Agent<br/>candidate strengths and info gaps"]
+    JobAgent["Job Analyst Agent<br/>job priorities and evaluation focus"]
+    MemoryAgent["Memory Agent<br/>retrieve historical review feedback"]
+    Rubric["Rubric Selector<br/>campus / experienced / intern track"]
+    Match["Matching Node<br/>skills, years, evidence, salary scoring"]
+    Risk["Risk Evaluator<br/>manual-review risk estimation"]
+    ReportingAgent["Reporting Agent<br/>merge match and risk into recommendation"]
+    Report["Report Writer<br/>render final evaluation report"]
+    Review["Human Review Node<br/>approval and feedback persistence"]
     End(["End"])
 
     Start --> Hub
     Hub --> Parser --> Resume --> JD --> Validator --> Retry
-    Retry -- 否，未超过重试上限 --> Resume
-    Retry -- 是 --> Rubric --> Match --> Risk --> Report --> Review --> End
-    Review -.反馈记忆.-> Hub
+    Retry -- retry --> Resume
+    Retry -- continue --> CandidateAgent --> JobAgent --> MemoryAgent --> Rubric --> Match --> Risk --> ReportingAgent --> Report --> Review --> End
+    Review -.feedback memory.-> Hub
 ```
 
-## 3. Agent、Node、Tool、Harness 边界
+## 3. Agent, Node, Tool, Harness Boundary
 
 ```mermaid
 flowchart TB
-    subgraph Agentic["Agentic Workflow 层"]
-        Hub["Orchestrator Agent"]
+    subgraph Agentic["Agentic Workflow Layer"]
+        Hub["Supervisor Agent"]
         Extract["Extraction Agent"]
-        ReportAgent["Report Agent"]
+        CandidateAgent["Candidate Analyst Agent"]
+        JobAgent["Job Analyst Agent"]
+        MemoryAgent["Memory Agent"]
+        ReportingAgent["Reporting Agent"]
     end
 
-    subgraph Nodes["确定性 Node / Skill 层"]
+    subgraph Nodes["Deterministic Node / Skill Layer"]
         Parser["PDF Parser"]
         Validator["Pydantic Validator"]
         Matcher["Matcher"]
         Risk["Risk Model"]
         Rubric["Rubric Selector"]
+        ReportWriter["Report Writer"]
     end
 
-    subgraph Tools["Tool 层"]
+    subgraph Tools["Tool Layer"]
         PDF["PDF / OCR Tool"]
         LLMTool["LLM Tool"]
         Email["Email Tool"]
         StoreTool["Persistence Tool"]
     end
 
-    subgraph Harness["Harness 层"]
+    subgraph Harness["Harness Layer"]
         Batch["Batch Runner"]
         Trace["Trace"]
         Replay["Replay"]
@@ -87,13 +95,17 @@ flowchart TB
     end
 
     Hub --> Extract
-    Hub --> ReportAgent
+    Hub --> CandidateAgent
+    Hub --> JobAgent
+    Hub --> MemoryAgent
+    Hub --> ReportingAgent
     Extract --> Validator
     Extract --> Parser
     Parser --> PDF
-    Extract -.可选.-> LLMTool
-    ReportAgent -.可选.-> LLMTool
-    ReportAgent --> Email
+    Extract -.optional.-> LLMTool
+    ReportingAgent -.optional.-> LLMTool
+    ReportingAgent --> ReportWriter
+    ReportWriter --> Email
     Nodes --> StoreTool
     Harness --> Agentic
     Harness --> Nodes

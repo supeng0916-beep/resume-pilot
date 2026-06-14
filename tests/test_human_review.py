@@ -13,6 +13,10 @@ def test_workflow_waits_for_human_review_by_default() -> None:
     assert result["human_review_status"] == "pending_review"
     assert result["human_decision"] is None
     assert result["trace"][-1]["node"] == "human_review"
+    assert result["trace"][0]["node"] == "supervisor"
+    assert result["supervisor_plan"]["request_type"] == "candidate_evaluation"
+    assert "candidate_analyst" in result["active_agents"]
+    assert "reporting_agent" in result["active_agents"]
 
 
 def test_workflow_records_human_review_decision() -> None:

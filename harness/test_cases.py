@@ -6,6 +6,7 @@ from core.state import WorkflowState
 def sample_candidate_case() -> WorkflowState:
     return {
         "request_id": "demo-001",
+        "request_type": "candidate_evaluation",
         "resume_file_path": "data/examples/demo_resume.pdf",
         "resume_text": "",
         "jd_text": (
@@ -38,6 +39,12 @@ def sample_candidate_case() -> WorkflowState:
         "feedback_memory_record": None,
         "feedback_memory_records": [],
         "feedback_memory_summaries": [],
+        "active_agents": [],
+        "supervisor_plan": None,
+        "agent_outputs": {},
+        "candidate_insights": None,
+        "job_insights": None,
+        "final_recommendation": None,
         "current_step": "initialized",
         "errors": [],
         "trace": [],

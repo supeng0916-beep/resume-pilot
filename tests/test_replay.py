@@ -25,7 +25,7 @@ def test_replay_case_can_be_saved_and_loaded() -> None:
     assert loaded["input"]["jd_text"] == initial_state["jd_text"]
     assert loaded["observed"]["match_score"] == result["match_score"]
     assert loaded["observed"]["report_quality"]["passed"] is True
-    assert loaded["observed"]["trace"][0]["node"] == "orchestrator"
+    assert loaded["observed"]["trace"][0]["node"] == "supervisor"
 
 
 def test_replay_case_can_rebuild_initial_state_and_compare_result() -> None:
