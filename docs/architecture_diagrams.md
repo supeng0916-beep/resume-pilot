@@ -1,386 +1,200 @@
-# Architecture Diagrams
+# Resume Pilot Architecture Diagrams
 
-这些图用于 README、答辩和面试讲解。图中分为两类：
+这些图用于 README、答辩和面试讲解。当前项目口径统一为：
 
-- 已实现：当前仓库已经具备的能力。
-- 生产化演进：面向真实部署的扩展设计，例如 Redis、异步队列、PostgreSQL 和鉴权。
+- 后端服务：FastAPI。
+- 工作流编排：Supervisor-centered LangGraph。
+- 生产主库：PostgreSQL，通过 `SQLAlchemyRunStore` 接入。
+- 异步任务与运行状态：Redis + RQ worker。
+- 本地 fallback：未配置 `HR_DATABASE_URL` 时才使用 SQLite。
 
-## 1. 系统上下文
+## 1. System Context
 
 ```mermaid
 flowchart LR
-    HR["招聘官 / 面试官"]
-    React["React 招聘评估工作台"]
-    API["FastAPI 服务层"]
-    Workflow["LangGraph Agentic Workflow"]
-    Store["SQLite 持久化<br/>run / trace / report / review / batch"]
-    LLM["可选 LLM 服务<br/>结构化抽取 / 图片 PDF / 报告增强"]
-    OCR["可选本地 OCR<br/>EasyOCR / PaddleOCR"]
-    SMTP["可选 SMTP 邮件发送"]
+    User["HR / Interviewer"]
+    React["React Web Console"]
+    API["FastAPI Backend"]
+    Workflow["LangGraph Workflow"]
+    DB["PostgreSQL<br/>runs / traces / reports / reviews / batches / jobs"]
+    Redis["Redis + RQ<br/>async jobs / runtime status"]
+    LLM["Ollama or OpenAI-compatible LLM"]
+    OCR["Optional OCR<br/>EasyOCR / PaddleOCR"]
+    SMTP["Optional SMTP"]
 
-    HR --> React
+    User --> React
     React --> API
     API --> Workflow
-    Workflow --> Store
-    Workflow -.可选.-> LLM
-    Workflow -.可选.-> OCR
-    React -.邮件入口.-> API
-    API -.可选.-> SMTP
+    API --> DB
+    API --> Redis
+    Redis --> Worker["RQ Worker"]
+    Worker --> Workflow
+    Workflow --> DB
+    Workflow -.optional.-> LLM
+    Workflow -.optional.-> OCR
+    API -.optional.-> SMTP
 ```
 
-## 2. Supervisor-Centered Hub-and-Spoke Agent Workflow
+## 2. Supervisor-Centered Workflow
 
 ```mermaid
 flowchart TD
-    Start(["Start"])
-    Hub["Supervisor Agent / Hub<br/>task planning, agent routing, review decisions"]
-    Parser["Document Parser Node<br/>PDF parsing / quality check / OCR flag"]
-    Resume["Resume Extraction Agent<br/>rules + optional LLM extraction"]
-    JD["JD Extraction Agent<br/>job requirement structuring"]
-    Validator["Validation Node<br/>Pydantic schema validation"]
-    Retry{"Validation passed?"}
-    CandidateAgent["Candidate Analyst Agent<br/>candidate strengths and info gaps"]
-    JobAgent["Job Analyst Agent<br/>job priorities and evaluation focus"]
-    MemoryAgent["Memory Agent<br/>retrieve historical review feedback"]
-    Rubric["Rubric Selector<br/>campus / experienced / intern track"]
-    Match["Matching Node<br/>skills, years, evidence, salary scoring"]
-    Risk["Risk Evaluator<br/>manual-review risk estimation"]
-    EvidenceAgent["Evidence Auditor Agent<br/>ground matched skills in resume evidence"]
-    CriticAgent["Critic Agent<br/>cross-agent consistency review"]
-    ConsensusAgent["Consensus Agent<br/>final arbitration and recommendation"]
-    Report["Report Writer<br/>render final evaluation report"]
-    Review["Human Review Node<br/>approval and feedback persistence"]
-    End(["End"])
+    Start["Request"]
+    Supervisor["Supervisor Agent<br/>task decomposition + route decision"]
+    Parser["Document Parser"]
+    Resume["Resume Extractor"]
+    JD["JD Extractor"]
+    Validator["Schema Validator"]
+    Specialists["Parallel Specialists"]
+    Candidate["Candidate Analyst"]
+    Job["Job Analyst"]
+    Memory["Memory Agent"]
+    Rubric["Rubric Selector"]
+    Matcher["Matcher"]
+    Risk["Risk Evaluator"]
+    Evidence["Evidence Auditor"]
+    Critic["Critic Agent"]
+    Consensus["Consensus Agent"]
+    Report["Report Writer"]
+    ReviewRouter["Supervisor Review Router"]
+    Human["Human Review"]
+    Done["Persisted Result"]
 
-    Start --> Hub
-    Hub --> Parser --> Resume --> JD --> Validator --> Retry
-    Retry -- retry --> Resume
-    Retry -- continue --> CandidateAgent --> JobAgent --> MemoryAgent --> Rubric --> Match --> Risk --> EvidenceAgent --> CriticAgent --> ConsensusAgent --> Report --> Review --> End
-    Review -.feedback memory.-> Hub
+    Start --> Supervisor
+    Supervisor --> Parser
+    Parser --> Resume
+    Resume --> JD
+    JD --> Validator
+    Validator --> Specialists
+    Specialists --> Candidate
+    Specialists --> Job
+    Specialists --> Memory
+    Candidate --> Rubric
+    Job --> Rubric
+    Memory --> Rubric
+    Rubric --> Matcher
+    Matcher --> Risk
+    Risk --> Evidence
+    Evidence --> Critic
+    Critic --> Consensus
+    Consensus --> Report
+    Report --> ReviewRouter
+    ReviewRouter --> Human
+    ReviewRouter --> Done
+    Human --> Done
 ```
 
-## 3. Agent, Node, Tool, Harness Boundary
+## 3. Parallel Specialist Fan-Out/Fan-In
+
+```mermaid
+flowchart LR
+    State["WorkflowState"]
+    Fanout["parallel_specialists_node"]
+    Candidate["Candidate Analyst<br/>strengths / gaps / candidate evidence"]
+    Job["Job Analyst<br/>job priorities / evaluation dimensions"]
+    Memory["Memory Agent<br/>similar review feedback"]
+    Merge["merge agent_results<br/>record trace + token usage"]
+
+    State --> Fanout
+    Fanout --> Candidate
+    Fanout --> Job
+    Fanout --> Memory
+    Candidate --> Merge
+    Job --> Merge
+    Memory --> Merge
+```
+
+## 4. Data And Runtime Store
 
 ```mermaid
 flowchart TB
-    subgraph Agentic["Agentic Workflow Layer"]
-        Hub["Supervisor Agent"]
-        Extract["Extraction Agent"]
-        CandidateAgent["Candidate Analyst Agent"]
-        JobAgent["Job Analyst Agent"]
-        MemoryAgent["Memory Agent"]
-        EvidenceAgent["Evidence Auditor Agent"]
-        CriticAgent["Critic Agent"]
-        ConsensusAgent["Consensus Agent"]
-    end
+    API["FastAPI"]
+    StoreFactory["create_run_store()"]
+    Postgres["SQLAlchemyRunStore<br/>PostgreSQL production store"]
+    SQLite["SQLiteRunStore<br/>local fallback only"]
+    Redis["Redis<br/>queue + runtime probe"]
 
-    subgraph Nodes["Deterministic Node / Skill Layer"]
-        Parser["PDF Parser"]
-        Validator["Pydantic Validator"]
-        Matcher["Matcher"]
-        Risk["Risk Model"]
-        Rubric["Rubric Selector"]
-        ReportWriter["Report Writer"]
-    end
-
-    subgraph Tools["Tool Layer"]
-        PDF["PDF / OCR Tool"]
-        LLMTool["LLM Tool"]
-        Email["Email Tool"]
-        StoreTool["Persistence Tool"]
-    end
-
-    subgraph Harness["Harness Layer"]
-        Batch["Batch Runner"]
-        Trace["Trace"]
-        Replay["Replay"]
-        Eval["Eval / Quality Check"]
-        LLMEval["LLM Extraction Eval"]
-    end
-
-    Hub --> Extract
-    Hub --> CandidateAgent
-    Hub --> JobAgent
-    Hub --> MemoryAgent
-    Hub --> EvidenceAgent
-    Hub --> CriticAgent
-    Hub --> ConsensusAgent
-    Extract --> Validator
-    Extract --> Parser
-    Parser --> PDF
-    Extract -.optional.-> LLMTool
-    ConsensusAgent -.optional.-> LLMTool
-    ConsensusAgent --> ReportWriter
-    ReportWriter --> Email
-    Nodes --> StoreTool
-    Harness --> Agentic
-    Harness --> Nodes
+    API --> StoreFactory
+    StoreFactory -->|"HR_DATABASE_URL set"| Postgres
+    StoreFactory -->|"HR_DATABASE_URL empty"| SQLite
+    API --> Redis
 ```
 
-## 4. 前后端分层
+## 5. Persistence Tables
 
-```mermaid
-flowchart LR
-    subgraph Frontend["Frontend: React + TypeScript + Vite"]
-        Dashboard["招聘评估工作台"]
-        BatchPage["创建评估批次"]
-        ReviewPage["人工复核队列"]
-        DetailPage["候选人详情 / 流程追踪 / 报告预览"]
-    end
-
-    subgraph Backend["Backend: FastAPI"]
-        EvalAPI["POST /evaluations"]
-        BatchAPI["POST /batch-evaluations"]
-        UploadAPI["POST /batch-evaluations/uploads"]
-        RunAPI["GET /runs /runs/{id}"]
-        TraceAPI["GET /traces/{id}"]
-        ReportAPI["GET /reports/{id}"]
-        ReviewAPI["GET/POST /reviews"]
-        BatchReadAPI["GET /batches /batches/{id}"]
-    end
-
-    subgraph Core["Core Workflow"]
-        Runner["Harness Runner"]
-        Workflow["LangGraph Workflow"]
-        Persistence["SQLiteRunStore"]
-    end
-
-    Dashboard --> RunAPI
-    Dashboard --> BatchReadAPI
-    BatchPage --> BatchAPI
-    BatchPage --> UploadAPI
-    ReviewPage --> ReviewAPI
-    DetailPage --> RunAPI
-    DetailPage --> TraceAPI
-    DetailPage --> ReportAPI
-    EvalAPI --> Runner
-    BatchAPI --> Runner
-    UploadAPI --> Runner
-    Runner --> Workflow
-    Runner --> Persistence
-```
-
-## 5. 数据与 ML 闭环
-
-```mermaid
-flowchart TD
-    Synthetic["合成结构化数据<br/>500 条候选人 / JD / 标签"]
-    Annotation["人工标注规范<br/>annotations.jsonl，默认不提交"]
-    Train["训练脚本<br/>train_review_risk_model.py"]
-    Model["review_risk_model.json<br/>人工复核风险模型"]
-    Workflow["Risk Evaluator Node"]
-    Review["人工复核结果"]
-    Memory["反馈记忆<br/>review_feedback.json，默认不提交"]
-    Docs["Model Card / Data Schema"]
-
-    Synthetic --> Train
-    Annotation -.补充真实脱敏样本.-> Train
-    Train --> Model
-    Model --> Workflow
-    Workflow --> Review
-    Review --> Memory
-    Synthetic --> Docs
-    Model --> Docs
-```
-
-## 6. SQLite 持久化表关系
+PostgreSQL and SQLite share the same logical run-store responsibilities.
 
 ```mermaid
 erDiagram
     workflow_runs ||--o| candidates : has
     workflow_runs ||--o| jobs : has
     workflow_runs ||--o{ traces : records
-    workflow_runs ||--o| reports : produces
+    workflow_runs ||--o| reports : emits
+    workflow_runs ||--o{ agent_runs : records
+    workflow_runs ||--o{ supervisor_decisions : records
     workflow_runs ||--o{ reviews : receives
-    workflow_runs ||--o{ email_deliveries : sends
     batches ||--o{ batch_runs : contains
-    workflow_runs ||--o{ batch_runs : belongs_to
-
-    workflow_runs {
-        string request_id PK
-        string current_step
-        float match_score
-        float risk_score
-        string human_review_status
-        string payload_json
-        string trace_json
-    }
-
-    candidates {
-        string request_id PK
-        string name
-        string education
-        int years_experience
-        string candidate_track
-        string profile_json
-    }
-
-    jobs {
-        string request_id PK
-        string title
-        int required_years
-        string recruitment_track
-        string required_skills_json
-    }
-
-    traces {
-        int id PK
-        string request_id FK
-        string node
-        string timestamp
-        string output_summary
-        string extra_json
-    }
-
-    reports {
-        string request_id PK
-        string markdown
-        string quality_json
-    }
-
-    reviews {
-        int id PK
-        string request_id FK
-        string decision
-        string feedback
-        string reviewer
-    }
-
-    email_deliveries {
-        int id PK
-        string request_id FK
-        string recipient
-        string subject
-        bool sent
-        string message
-    }
-
-    batches {
-        string request_id PK
-        int candidate_count
-        string top_candidate_request_id
-        string payload_json
-    }
-
-    batch_runs {
-        string batch_request_id FK
-        string request_id FK
-        string candidate_id
-        float rank_score
-        int rank_index
-    }
+    evaluation_jobs ||--o{ workflow_runs : creates
 ```
 
-## 7. Harness 运行、评估与回放
-
-```mermaid
-flowchart LR
-    Cases["测试样本 / 批量简历 / JD"]
-    Runner["Scenario Harness<br/>runner / batch_runner"]
-    Workflow["LangGraph Workflow"]
-    Trace["Observability Harness<br/>节点 trace / 错误 / 耗时"]
-    Replay["Replay Harness<br/>保存输入与节点输出"]
-    Eval["Eval Harness<br/>报告质量 / 抽取准确率 / 回归检查"]
-    Report["测试报告 / LLM eval report"]
-
-    Cases --> Runner
-    Runner --> Workflow
-    Workflow --> Trace
-    Workflow --> Replay
-    Trace --> Eval
-    Replay --> Eval
-    Eval --> Report
-```
-
-## 8. 当前本地部署架构
-
-```mermaid
-flowchart TB
-    User["用户浏览器"]
-    ReactDev["React Dev Server<br/>127.0.0.1:5173"]
-    FastAPI["FastAPI / Uvicorn<br/>127.0.0.1:8000"]
-    Static["frontend/dist<br/>Docker 或生产静态托管"]
-    SQLite["data/hr_runs.sqlite3"]
-    Uploads["data/api_uploads<br/>默认不提交"]
-    Env[".env<br/>本地密钥，默认不提交"]
-
-    User --> ReactDev
-    ReactDev --> FastAPI
-    User -.Docker / build 后.-> FastAPI
-    FastAPI --> Static
-    FastAPI --> SQLite
-    FastAPI --> Uploads
-    FastAPI -.读取配置.-> Env
-```
-
-## 9. 生产化异步并发演进
-
-当前版本为了演示稳定采用同步 API 调用。真实部署可演进为异步任务架构：
-
-```mermaid
-flowchart LR
-    React["React 工作台"]
-    API["FastAPI<br/>鉴权 / 创建任务 / 查询状态"]
-    DB["PostgreSQL<br/>任务、运行、报告、复核最终状态"]
-    Redis["Redis<br/>队列 Broker / 短期进度 / 幂等锁"]
-    WorkerA["Worker A<br/>PDF / OCR"]
-    WorkerB["Worker B<br/>LLM 抽取"]
-    WorkerC["Worker C<br/>LangGraph 评分与报告"]
-    LLM["LLM Provider"]
-    OCR["OCR Provider"]
-
-    React --> API
-    API --> DB
-    API --> Redis
-    Redis --> WorkerA
-    Redis --> WorkerB
-    Redis --> WorkerC
-    WorkerA --> OCR
-    WorkerB --> LLM
-    WorkerC --> LLM
-    WorkerA --> DB
-    WorkerB --> DB
-    WorkerC --> DB
-    React -.轮询 / WebSocket.-> API
-```
-
-面试表述要点：
-
-- 当前没有强行把 Redis 放进 MVP，因为本地演示同步流程更稳定。
-- 架构已经通过 `request_id`、批次表、trace 表和 review 表做好并发隔离。
-- 长耗时任务如 OCR、Vision LLM、批量评估适合迁移到 Redis Queue + Worker。
-- Redis 用作 broker、短期进度缓存和幂等锁；PostgreSQL 保存最终业务状态。
-
-## 10. LLM 与工具调用路径
+## 6. Document Parsing Strategy
 
 ```mermaid
 flowchart TD
-    State["WorkflowState"]
-    ParserDecision{"PDF 是否低质量<br/>或图片型？"}
-    TextParser["PyMuPDF 文本解析"]
-    VisionLLM["Vision LLM PDF 解析<br/>可选开关"]
-    LocalOCR["Local OCR<br/>可选开关"]
-    ExtractDecision{"是否启用 LLM 结构化抽取？"}
-    RuleExtract["规则抽取兜底"]
-    LLMExtract["LLM JSON 抽取<br/>Pydantic 校验"]
-    ReportDecision{"是否启用 LLM 报告增强？"}
-    RuleReport["确定性 Markdown 报告"]
-    LLMReport["LLM 增强摘要与面试问题"]
-    Validation["Schema 校验 / retry / graceful fallback"]
+    PDF["Resume PDF"]
+    PyMuPDF["PyMuPDF text extraction"]
+    Quality["Text quality check"]
+    OCR["OCR fallback"]
+    Vision["Vision LLM fallback"]
+    Clean["clean_extracted_text"]
+    ResumeExtractor["Resume Extractor"]
 
-    State --> ParserDecision
-    ParserDecision -- 文本型 PDF --> TextParser
-    ParserDecision -- 图片型 / 低质量 --> VisionLLM
-    ParserDecision -- 本地 OCR 开启 --> LocalOCR
-    TextParser --> ExtractDecision
-    VisionLLM --> ExtractDecision
-    LocalOCR --> ExtractDecision
-    ExtractDecision -- 否 --> RuleExtract
-    ExtractDecision -- 是 --> LLMExtract --> Validation
-    Validation -- 失败 --> RuleExtract
-    RuleExtract --> ReportDecision
-    Validation -- 通过 --> ReportDecision
-    ReportDecision -- 否 --> RuleReport
-    ReportDecision -- 是 --> LLMReport
-    LLMReport -.失败兜底.-> RuleReport
+    PDF --> PyMuPDF
+    PyMuPDF --> Quality
+    Quality -->|"enough text"| Clean
+    Quality -->|"image-like PDF"| OCR
+    Quality -->|"configured vision_first"| Vision
+    OCR --> Clean
+    Vision --> Clean
+    Clean --> ResumeExtractor
+```
+
+## 7. Harness Verification Loop
+
+```mermaid
+flowchart LR
+    Cases["test cases / datasets"]
+    Runner["batch runner"]
+    Trace["trace capture"]
+    Replay["replay"]
+    Eval["report + extraction evaluation"]
+    Benchmark["benchmark"]
+    Tests["pytest + vitest + build"]
+
+    Cases --> Runner
+    Runner --> Trace
+    Trace --> Replay
+    Replay --> Eval
+    Eval --> Benchmark
+    Benchmark --> Tests
+```
+
+## 8. Deployment Shape
+
+```mermaid
+flowchart LR
+    Browser["Browser"]
+    API["FastAPI container"]
+    Worker["RQ worker container"]
+    DB["PostgreSQL"]
+    Redis["Redis"]
+    Ollama["Host Ollama<br/>optional"]
+
+    Browser --> API
+    API --> DB
+    API --> Redis
+    Redis --> Worker
+    Worker --> DB
+    Worker --> Ollama
+    API --> Ollama
 ```

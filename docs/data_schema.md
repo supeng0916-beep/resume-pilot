@@ -1,6 +1,6 @@
 # Data Schema
 
-This project uses JSONL for datasets and SQLite for local runtime persistence. React reads runtime data only through FastAPI.
+This project uses JSONL for datasets and a FastAPI-managed runtime store. Production deployments should use PostgreSQL through SQLAlchemy; SQLite remains only as a local fallback when `HR_DATABASE_URL` is not configured. React reads runtime data only through FastAPI.
 
 ## Dataset Files
 
@@ -62,11 +62,13 @@ Committed examples showing the expected redacted format for real manually review
 
 Evaluation cases for comparing rule extraction, LLM extraction, and golden answers.
 
-## Runtime SQLite
+## Runtime Database
 
-Default path: `data/hr_runs.sqlite3`
+Production database: PostgreSQL via `HR_DATABASE_URL`.
 
-The database is ignored by git. It is used for local demo persistence and can be replaced with PostgreSQL for multi-user deployments.
+Local fallback path: `data/hr_runs.sqlite3`.
+
+Runtime databases are ignored by git. PostgreSQL is the intended deployment store; the SQLite file is only for local single-user development.
 
 ### Tables
 
@@ -121,6 +123,6 @@ The database is ignored by git. It is used for local demo persistence and can be
 
 ## Privacy Boundaries
 
-- `.env`, local SQLite files, uploaded resumes, and private raw resumes must not be committed.
+- `.env`, local database files, uploaded resumes, and private raw resumes must not be committed.
 - Real samples should be redacted before entering JSONL datasets.
 - The ML target is `needs_human_review`; do not label or present the model as a hiring-decision predictor.

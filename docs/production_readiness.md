@@ -13,7 +13,8 @@ AgenticHR is no longer framed as a toy demo. It is a production-oriented prototy
 - embedded deterministic skills for CandidateAnalyst and JobAnalyst with optional local LLM reasoning
 - FastAPI service boundary
 - React control cabin
-- SQLite persistence for local runs, batches, agent runs, Supervisor decisions, reviews, email deliveries, and async jobs
+- SQLAlchemy/PostgreSQL persistence for production runs, batches, agent runs, Supervisor decisions, reviews, email deliveries, and async jobs
+- SQLite persistence as a local fallback when `HR_DATABASE_URL` is not configured
 - trace and replay harness
 - batch runner and benchmark runner
 - report quality evaluation
@@ -25,7 +26,7 @@ AgenticHR is no longer framed as a toy demo. It is a production-oriented prototy
 ## Not Production Yet
 
 - no authentication or role-based access control
-- SQLite is not suitable for multi-user production deployment
+- authentication and role-based access control are still not enforced
 - long-running OCR and LLM jobs still run in-process unless an external worker is introduced
 - no hosted tracing or alerting
 - no formal bias audit
