@@ -41,6 +41,18 @@ def test_api_health_returns_storage_status(tmp_path) -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_api_runtime_reports_queue_backend_without_requiring_redis(tmp_path, monkeypatch) -> None:
+    monkeypatch.delenv("HR_REDIS_URL", raising=False)
+    app = create_app(store=SQLiteRunStore(tmp_path / "runs.db"))
+    client = TestClient(app)
+
+    response = client.get("/runtime")
+
+    assert response.status_code == 200
+    assert response.json()["queue_backend"] == "fastapi_background_tasks"
+    assert response.json()["redis_configured"] is False
+
+
 def test_api_prefixed_health_returns_json_when_react_dist_is_served(tmp_path) -> None:
     dist_dir = tmp_path / "dist"
     dist_dir.mkdir()
@@ -175,6 +187,54 @@ def test_api_filters_and_pages_runs(tmp_path) -> None:
     assert len(paged.json()["runs"]) == 1
 
 
+def test_api_deletes_one_run_and_related_records(tmp_path) -> None:
+    store = SQLiteRunStore(tmp_path / "runs.db")
+    store.save_workflow_result(
+        {
+            "request_id": "delete-run-001",
+            "current_step": "human_review",
+            "match_score": 88,
+            "risk_score": 0.2,
+            "human_review_status": "pending",
+            "trace": [{"node": "matcher", "output_summary": "matched"}],
+            "report": "# report",
+        }
+    )
+    app = create_app(store=store)
+    client = TestClient(app)
+
+    response = client.delete("/runs/delete-run-001")
+
+    assert response.status_code == 200
+    assert response.json() == {"request_id": "delete-run-001", "deleted": True}
+    assert client.get("/runs/delete-run-001").status_code == 404
+    assert client.get("/traces/delete-run-001").status_code == 404
+
+
+def test_api_clears_all_evaluation_records(tmp_path) -> None:
+    store = SQLiteRunStore(tmp_path / "runs.db")
+    for index in range(2):
+        store.save_workflow_result(
+            {
+                "request_id": f"clear-run-{index}",
+                "current_step": "human_review",
+                "match_score": 80,
+                "risk_score": 0.1,
+                "human_review_status": "pending",
+                "trace": [],
+                "report": "# report",
+            }
+        )
+    app = create_app(store=store)
+    client = TestClient(app)
+
+    response = client.delete("/runs")
+
+    assert response.status_code == 200
+    assert response.json()["deleted_count"] == 2
+    assert client.get("/runs").json()["runs"] == []
+
+
 def test_api_sends_persisted_report_email_and_records_delivery(tmp_path, monkeypatch) -> None:
     store = SQLiteRunStore(tmp_path / "runs.db")
     store.save_workflow_result(
@@ -271,3 +331,32 @@ def test_api_rejects_email_without_report_content(tmp_path) -> None:
 
     assert response.status_code == 400
     assert response.json()["detail"] == "report content is required"
+
+
+def test_api_creates_async_batch_job_and_exposes_status(tmp_path) -> None:
+    store = SQLiteRunStore(tmp_path / "runs.db")
+    app = create_app(store=store)
+    client = TestClient(app)
+
+    response = client.post(
+        "/batch-evaluations/jobs",
+        json={
+            "request_id": "async-batch-001",
+            "resumes": [
+                {"candidate_id": "alice", "resume_text": "Alice Python FastAPI project."},
+            ],
+            "jd_text": "Backend engineer requires Python and FastAPI.",
+            "risk_model_path": "models/review_risk_model.json",
+        },
+    )
+
+    assert response.status_code == 202
+    job = response.json()
+    assert job["request_id"] == "async-batch-001"
+    assert job["status"] in {"queued", "running", "completed"}
+
+    saved = client.get(f"/jobs/{job['job_id']}")
+    assert saved.status_code == 200
+    assert saved.json()["job_id"] == job["job_id"]
+    assert saved.json()["status"] == "completed"
+    assert saved.json()["result"]["candidate_count"] == 1

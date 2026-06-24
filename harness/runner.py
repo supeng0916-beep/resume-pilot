@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from time import perf_counter
+
 from graph.workflow import build_workflow
 from harness.evaluator import evaluate_workflow_result
 from harness.replay import build_replay_case, initial_state_from_replay_case, load_replay_case, save_replay_case
@@ -49,7 +51,9 @@ def run_evaluation(
     if enable_llm_structured_extraction is not None:
         initial_state["enable_llm_structured_extraction"] = enable_llm_structured_extraction
 
+    started = perf_counter()
     result = workflow.invoke(initial_state)
+    result["duration_ms"] = int((perf_counter() - started) * 1000)
     if include_quality_check:
         result["report_quality"] = evaluate_workflow_result(result).as_dict()
     if save_replay:

@@ -93,6 +93,9 @@ def _build_agent_collaboration_lines(state: WorkflowState) -> list[str]:
     candidate_insights = state.get("candidate_insights") or {}
     job_insights = state.get("job_insights") or {}
     final_recommendation = state.get("final_recommendation") or {}
+    agent_outputs = state.get("agent_outputs") or {}
+    evidence_audit = agent_outputs.get("evidence_auditor") or {}
+    critic = agent_outputs.get("critic_agent") or {}
 
     for item in candidate_insights.get("strengths", [])[:2]:
         lines.append(f"Candidate Analyst：{item}")
@@ -100,8 +103,18 @@ def _build_agent_collaboration_lines(state: WorkflowState) -> list[str]:
         lines.append(f"Candidate Analyst Gap：{item}")
     for item in job_insights.get("priorities", [])[:2]:
         lines.append(f"Job Analyst：{item}")
+    evidence_findings = evidence_audit.get("findings", {}) if isinstance(evidence_audit, dict) else {}
+    unsupported_skills = evidence_findings.get("unsupported_skills", []) if isinstance(evidence_findings, dict) else []
+    if unsupported_skills:
+        lines.append(f"Evidence Auditor：{', '.join(unsupported_skills)} 缺少直接简历证据。")
+    critic_findings = critic.get("findings", {}) if isinstance(critic, dict) else {}
+    critic_conflicts = critic_findings.get("conflicts", []) if isinstance(critic_findings, dict) else []
+    for item in critic_conflicts[:2]:
+        lines.append(f"Critic Agent：{item}")
+    if final_recommendation.get("consensus_confidence") is not None:
+        lines.append(f"Consensus Agent：多 Agent 一致置信度 {final_recommendation['consensus_confidence']}。")
     if final_recommendation.get("rationale"):
-        lines.append(f"Reporting Agent：{final_recommendation['rationale']}")
+        lines.append(f"Final Recommendation：{final_recommendation['rationale']}")
 
     return lines or ["Supervisor 已完成任务编排，并将结果汇总到最终评估中。"]
 

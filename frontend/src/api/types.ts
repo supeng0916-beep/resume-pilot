@@ -8,11 +8,41 @@ export interface WorkflowRun {
   report?: string | null;
   active_agents?: string[];
   supervisor_plan?: Record<string, unknown> | null;
+  supervisor_decisions?: SupervisorDecision[];
   agent_outputs?: Record<string, unknown>;
+  agent_metrics?: Record<string, AgentMetric>;
+  specialist_execution?: SpecialistExecution | null;
   created_at?: string;
   updated_at?: string;
   payload?: Record<string, unknown>;
   trace?: TraceEvent[];
+}
+
+export interface TokenUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+}
+
+export interface AgentMetric {
+  status?: string | null;
+  confidence?: number | null;
+  duration_ms?: number | null;
+  token_usage?: TokenUsage | null;
+  model_name?: string | null;
+  provider?: string | null;
+}
+
+export interface SupervisorDecision {
+  stage?: string | null;
+  active_agents?: string[];
+  skipped_agents?: Record<string, string>;
+}
+
+export interface SpecialistExecution {
+  mode?: string;
+  agents?: string[];
+  duration_ms?: number;
 }
 
 export interface TraceEvent {
@@ -95,6 +125,10 @@ export interface BatchSummary {
 export interface HealthResponse {
   status: string;
   storage: string;
+  queue_backend?: string;
+  redis_configured?: boolean;
+  redis_available?: boolean;
+  redis_message?: string;
 }
 
 export interface EmailReportRequest {

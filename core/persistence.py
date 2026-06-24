@@ -138,6 +138,61 @@ class SQLiteRunStore:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS agent_runs (
+                    request_id TEXT NOT NULL,
+                    agent_name TEXT NOT NULL,
+                    status TEXT,
+                    confidence REAL,
+                    duration_ms INTEGER,
+                    model_name TEXT,
+                    provider TEXT,
+                    token_usage_json TEXT NOT NULL,
+                    output_json TEXT NOT NULL,
+                    PRIMARY KEY(request_id, agent_name),
+                    FOREIGN KEY(request_id) REFERENCES workflow_runs(request_id)
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS supervisor_decisions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    request_id TEXT NOT NULL,
+                    stage TEXT,
+                    active_agents_json TEXT NOT NULL,
+                    skipped_agents_json TEXT NOT NULL,
+                    decision_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(request_id) REFERENCES workflow_runs(request_id)
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS evaluation_jobs (
+                    job_id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    request_id TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    result_json TEXT,
+                    error_message TEXT,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_workflow_runs_updated_at ON workflow_runs(updated_at)"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_workflow_runs_review_status ON workflow_runs(human_review_status)"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_evaluation_jobs_status ON evaluation_jobs(status)"
+            )
 
     def save_workflow_result(self, result: dict[str, Any]) -> None:
         self.initialize()
@@ -284,6 +339,65 @@ class SQLiteRunStore:
                     json.dumps(result.get("report_quality") or {}, ensure_ascii=False, default=str),
                 ),
             )
+            agent_metrics = result.get("agent_metrics") or {}
+            agent_outputs = result.get("agent_outputs") or {}
+            connection.execute("DELETE FROM agent_runs WHERE request_id = ?", (request_id,))
+            connection.executemany(
+                """
+                INSERT INTO agent_runs (
+                    request_id,
+                    agent_name,
+                    status,
+                    confidence,
+                    duration_ms,
+                    model_name,
+                    provider,
+                    token_usage_json,
+                    output_json
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        request_id,
+                        agent_name,
+                        metric.get("status"),
+                        metric.get("confidence"),
+                        metric.get("duration_ms"),
+                        metric.get("model_name"),
+                        metric.get("provider"),
+                        json.dumps(metric.get("token_usage") or {}, ensure_ascii=False, default=str),
+                        json.dumps(agent_outputs.get(agent_name) or {}, ensure_ascii=False, default=str),
+                    )
+                    for agent_name, metric in agent_metrics.items()
+                    if isinstance(metric, dict)
+                ],
+            )
+            supervisor_decisions = result.get("supervisor_decisions") or []
+            connection.execute("DELETE FROM supervisor_decisions WHERE request_id = ?", (request_id,))
+            connection.executemany(
+                """
+                INSERT INTO supervisor_decisions (
+                    request_id,
+                    stage,
+                    active_agents_json,
+                    skipped_agents_json,
+                    decision_json
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        request_id,
+                        decision.get("stage"),
+                        json.dumps(decision.get("active_agents") or [], ensure_ascii=False, default=str),
+                        json.dumps(decision.get("skipped_agents") or {}, ensure_ascii=False, default=str),
+                        json.dumps(decision, ensure_ascii=False, default=str),
+                    )
+                    for decision in supervisor_decisions
+                    if isinstance(decision, dict)
+                ],
+            )
 
     def get_run(self, request_id: str) -> dict[str, Any] | None:
         self.initialize()
@@ -321,6 +435,61 @@ class SQLiteRunStore:
                 parameters,
             ).fetchall()
         return [self._row_to_dict(row) for row in rows]
+
+    def delete_run(self, request_id: str) -> bool:
+        self.initialize()
+        with self._connect() as connection:
+            existing = connection.execute(
+                "SELECT request_id FROM workflow_runs WHERE request_id = ?",
+                (request_id,),
+            ).fetchone()
+            if existing is None:
+                return False
+            for table in (
+                "traces",
+                "reports",
+                "reviews",
+                "email_deliveries",
+                "candidates",
+                "jobs",
+                "agent_runs",
+                "supervisor_decisions",
+            ):
+                connection.execute(f"DELETE FROM {table} WHERE request_id = ?", (request_id,))
+            connection.execute("DELETE FROM batch_runs WHERE request_id = ?", (request_id,))
+            connection.execute("DELETE FROM workflow_runs WHERE request_id = ?", (request_id,))
+            orphan_batches = connection.execute(
+                """
+                SELECT batches.request_id
+                FROM batches
+                LEFT JOIN batch_runs ON batch_runs.batch_request_id = batches.request_id
+                WHERE batch_runs.request_id IS NULL
+                """
+            ).fetchall()
+            for row in orphan_batches:
+                connection.execute("DELETE FROM batches WHERE request_id = ?", (row["request_id"],))
+        return True
+
+    def clear_evaluation_data(self) -> int:
+        self.initialize()
+        with self._connect() as connection:
+            count = connection.execute("SELECT COUNT(*) AS total FROM workflow_runs").fetchone()["total"]
+            for table in (
+                "email_deliveries",
+                "reviews",
+                "reports",
+                "traces",
+                "candidates",
+                "jobs",
+                "agent_runs",
+                "supervisor_decisions",
+                "batch_runs",
+                "batches",
+                "evaluation_jobs",
+                "workflow_runs",
+            ):
+                connection.execute(f"DELETE FROM {table}")
+        return int(count)
 
     def save_batch_result(self, batch_result: dict[str, Any]) -> None:
         self.initialize()
@@ -503,6 +672,164 @@ class SQLiteRunStore:
             "created_at": row["created_at"],
         }
 
+    def get_agent_runs(self, request_id: str) -> list[dict[str, Any]]:
+        self.initialize()
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM agent_runs
+                WHERE request_id = ?
+                ORDER BY agent_name ASC
+                """,
+                (request_id,),
+            ).fetchall()
+        return [
+            {
+                "request_id": row["request_id"],
+                "agent_name": row["agent_name"],
+                "status": row["status"],
+                "confidence": row["confidence"],
+                "duration_ms": row["duration_ms"],
+                "model_name": row["model_name"],
+                "provider": row["provider"],
+                "token_usage": json.loads(row["token_usage_json"]),
+                "output": json.loads(row["output_json"]),
+            }
+            for row in rows
+        ]
+
+    def get_supervisor_decisions(self, request_id: str) -> list[dict[str, Any]]:
+        self.initialize()
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM supervisor_decisions
+                WHERE request_id = ?
+                ORDER BY id ASC
+                """,
+                (request_id,),
+            ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "request_id": row["request_id"],
+                "stage": row["stage"],
+                "active_agents": json.loads(row["active_agents_json"]),
+                "skipped_agents": json.loads(row["skipped_agents_json"]),
+                "decision": json.loads(row["decision_json"]),
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+    def save_evaluation_job(
+        self,
+        *,
+        job_id: str,
+        kind: str,
+        request_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        self.initialize()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO evaluation_jobs (
+                    job_id,
+                    kind,
+                    request_id,
+                    status,
+                    payload_json
+                )
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(job_id) DO UPDATE SET
+                    kind=excluded.kind,
+                    request_id=excluded.request_id,
+                    status=excluded.status,
+                    payload_json=excluded.payload_json,
+                    result_json=NULL,
+                    error_message=NULL,
+                    updated_at=CURRENT_TIMESTAMP
+                """,
+                (
+                    job_id,
+                    kind,
+                    request_id,
+                    "queued",
+                    json.dumps(payload, ensure_ascii=False, default=str),
+                ),
+            )
+        return self.get_evaluation_job(job_id) or {}
+
+    def mark_evaluation_job_running(self, job_id: str) -> None:
+        self._update_evaluation_job_status(job_id, status="running")
+
+    def complete_evaluation_job(self, job_id: str, result: dict[str, Any]) -> None:
+        self.initialize()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE evaluation_jobs
+                SET status = ?, result_json = ?, error_message = NULL, updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = ?
+                """,
+                ("completed", json.dumps(result, ensure_ascii=False, default=str), job_id),
+            )
+
+    def fail_evaluation_job(self, job_id: str, error_message: str) -> None:
+        self.initialize()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE evaluation_jobs
+                SET status = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = ?
+                """,
+                ("failed", error_message, job_id),
+            )
+
+    def get_evaluation_job(self, job_id: str) -> dict[str, Any] | None:
+        self.initialize()
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM evaluation_jobs WHERE job_id = ?",
+                (job_id,),
+            ).fetchone()
+        return self._evaluation_job_row_to_dict(row) if row else None
+
+    def list_evaluation_jobs(self, *, limit: int = 50, status: str | None = None) -> list[dict[str, Any]]:
+        self.initialize()
+        safe_limit = max(1, min(int(limit), 200))
+        parameters: list[Any] = []
+        where_clause = ""
+        if status:
+            where_clause = "WHERE status = ?"
+            parameters.append(status)
+        parameters.append(safe_limit)
+        with self._connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT * FROM evaluation_jobs
+                {where_clause}
+                ORDER BY updated_at DESC, created_at DESC
+                LIMIT ?
+                """,
+                parameters,
+            ).fetchall()
+        return [self._evaluation_job_row_to_dict(row) for row in rows]
+
+    def _update_evaluation_job_status(self, job_id: str, *, status: str) -> None:
+        self.initialize()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE evaluation_jobs
+                SET status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = ?
+                """,
+                (status, job_id),
+            )
+
     def save_review(
         self,
         *,
@@ -605,6 +932,7 @@ class SQLiteRunStore:
 
     @staticmethod
     def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
+        payload = json.loads(row["payload_json"])
         return {
             "request_id": row["request_id"],
             "current_step": row["current_step"],
@@ -612,8 +940,14 @@ class SQLiteRunStore:
             "risk_score": row["risk_score"],
             "human_review_status": row["human_review_status"],
             "report": row["report"],
-            "payload": json.loads(row["payload_json"]),
+            "payload": payload,
             "trace": json.loads(row["trace_json"]),
+            "agent_metrics": payload.get("agent_metrics") or {},
+            "agent_outputs": payload.get("agent_outputs") or {},
+            "supervisor_decisions": payload.get("supervisor_decisions") or [],
+            "specialist_execution": payload.get("specialist_execution"),
+            "active_agents": payload.get("active_agents") or [],
+            "supervisor_plan": payload.get("supervisor_plan"),
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
         }
@@ -650,4 +984,19 @@ class SQLiteRunStore:
             "sent": bool(row["sent"]),
             "message": row["message"],
             "created_at": row["created_at"],
+        }
+
+    @staticmethod
+    def _evaluation_job_row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
+        result_json = row["result_json"]
+        return {
+            "job_id": row["job_id"],
+            "kind": row["kind"],
+            "request_id": row["request_id"],
+            "status": row["status"],
+            "payload": json.loads(row["payload_json"]),
+            "result": json.loads(result_json) if result_json else None,
+            "error_message": row["error_message"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
         }

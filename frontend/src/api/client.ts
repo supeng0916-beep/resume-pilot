@@ -28,6 +28,8 @@ export interface ApiClient {
   createBatchEvaluation(request: BatchEvaluationRequest): Promise<BatchEvaluationResult>;
   uploadBatchEvaluation(request: UploadBatchEvaluationRequest): Promise<BatchEvaluationResult>;
   sendReportEmail(request: EmailReportRequest): Promise<EmailDelivery>;
+  deleteRun(requestId: string): Promise<{ request_id: string; deleted: boolean }>;
+  clearRuns(): Promise<{ deleted_count: number }>;
   saveReview(
     requestId: string,
     review: { decision: string; feedback?: string; reviewer?: string }
@@ -115,6 +117,20 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(request)
+        })
+      );
+    },
+    async deleteRun(requestId) {
+      return readJson<{ request_id: string; deleted: boolean }>(
+        await fetchImpl(endpoint(baseUrl, `/runs/${encodeURIComponent(requestId)}`), {
+          method: "DELETE"
+        })
+      );
+    },
+    async clearRuns() {
+      return readJson<{ deleted_count: number }>(
+        await fetchImpl(endpoint(baseUrl, "/runs"), {
+          method: "DELETE"
         })
       );
     },

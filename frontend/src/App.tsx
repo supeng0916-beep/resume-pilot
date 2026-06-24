@@ -10,7 +10,9 @@ import type {
   WorkflowRun
 } from "./api/types";
 import { AppShell } from "./components/AppShell";
+import type { AppView } from "./components/AppShell";
 import { BatchEvaluationPage } from "./pages/BatchEvaluationPage";
+import { CandidateRunsPage } from "./pages/CandidateRunsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ReviewQueuePage } from "./pages/ReviewQueuePage";
 import { RunDetailPage } from "./pages/RunDetailPage";
@@ -19,6 +21,7 @@ import "./styles/app.css";
 
 export default function App() {
   const api = useMemo(() => createApiClient(), []);
+  const [activeView, setActiveView] = useState<AppView>("overview");
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
   const [batches, setBatches] = useState<BatchSummary[]>([]);
@@ -56,6 +59,8 @@ export default function App() {
       const firstRun = latestRuns.find((run) => run.request_id.startsWith(`${request.request_id}-`));
       if (firstRun) {
         await selectRun(firstRun.request_id);
+      } else {
+        setActiveView("candidates");
       }
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : "Batch evaluation failed");
@@ -73,6 +78,8 @@ export default function App() {
       const firstRun = latestRuns.find((run) => run.request_id.startsWith(`${request.request_id}-`));
       if (firstRun) {
         await selectRun(firstRun.request_id);
+      } else {
+        setActiveView("candidates");
       }
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : "Upload batch evaluation failed");
@@ -92,6 +99,7 @@ export default function App() {
       setSelectedRun(run);
       setSelectedTrace(trace);
       setSelectedReport(report);
+      setActiveView("detail");
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : "Unable to load run detail");
     }
@@ -117,19 +125,94 @@ export default function App() {
     return api.sendReportEmail(request);
   }
 
-  return (
-    <AppShell health={health}>
-      <DashboardPage health={health} runs={runs} batches={batches} error={error} onSelectRun={selectRun} />
-      <BatchEvaluationPage isRunning={isRunning} onSubmit={runBatch} onUploadSubmit={uploadBatch} />
-      <ReviewQueuePage runs={runs} onSubmitReview={submitReview} />
-      {selectedRun ? (
+  async function deleteRun(requestId: string) {
+    setError(null);
+    try {
+      await api.deleteRun(requestId);
+      if (selectedRun?.request_id === requestId) {
+        setSelectedRun(null);
+        setSelectedTrace([]);
+        setSelectedReport(null);
+        setActiveView("candidates");
+      }
+      await refreshRuns();
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : "Unable to delete run");
+    }
+  }
+
+  async function clearRuns() {
+    setError(null);
+    try {
+      await api.clearRuns();
+      setSelectedRun(null);
+      setSelectedTrace([]);
+      setSelectedReport(null);
+      await refreshRuns();
+      setActiveView("candidates");
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : "Unable to clear records");
+    }
+  }
+
+  function renderActiveView() {
+    if (activeView === "evaluations") {
+      return <BatchEvaluationPage isRunning={isRunning} onSubmit={runBatch} onUploadSubmit={uploadBatch} />;
+    }
+    if (activeView === "candidates") {
+      return (
+        <CandidateRunsPage
+          runs={runs}
+          batches={batches}
+          onSelectRun={selectRun}
+          onDeleteRun={deleteRun}
+          onClearRuns={clearRuns}
+        />
+      );
+    }
+    if (activeView === "reviews") {
+      return <ReviewQueuePage runs={runs} onSubmitReview={submitReview} />;
+    }
+    if (activeView === "detail") {
+      return selectedRun ? (
         <RunDetailPage
           run={selectedRun}
           trace={selectedTrace}
           report={selectedReport}
           onSendReportEmail={sendReportEmail}
         />
-      ) : null}
+      ) : (
+        <CandidateRunsPage
+          runs={runs}
+          batches={batches}
+          onSelectRun={selectRun}
+          onDeleteRun={deleteRun}
+          onClearRuns={clearRuns}
+        />
+      );
+    }
+    return (
+      <DashboardPage
+        health={health}
+        runs={runs}
+        batches={batches}
+        error={error}
+        onNavigate={setActiveView}
+        onSelectRun={selectRun}
+      />
+    );
+  }
+
+  return (
+    <AppShell
+      activeView={activeView}
+      health={health}
+      queueLabel={health?.queue_backend ?? "queue"}
+      selectedRunId={selectedRun?.request_id}
+      onNavigate={setActiveView}
+    >
+      {error && activeView !== "overview" ? <div className="alert">{error}</div> : null}
+      {renderActiveView()}
     </AppShell>
   );
 }

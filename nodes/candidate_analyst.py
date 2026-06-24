@@ -1,40 +1,44 @@
 from __future__ import annotations
 
+from core.agent_contracts import AgentResult, record_agent_result
+from core.agent_reasoning import enrich_findings_with_llm
+from core.agent_skills import analyze_candidate_profile_skill
 from core.state import WorkflowState
 from harness.trace import add_trace
 
 
 def candidate_analyst_node(state: WorkflowState) -> WorkflowState:
     candidate = state.get("candidate_profile") or {}
-    skills = list(candidate.get("skills", []))
-    experiences = list(candidate.get("work_experiences", []))
-    projects = list(candidate.get("campus_projects", []))
-
-    strengths: list[str] = []
-    if skills:
-        strengths.append(f"Primary skill stack includes {', '.join(skills[:4])}.")
-    if experiences:
-        strengths.append("Has prior work experience that can support behavioral interviewing.")
-    if projects:
-        strengths.append("Has project evidence available for technical deep-dive questions.")
-
-    gaps: list[str] = []
-    if not candidate.get("expected_salary"):
-        gaps.append("Expected salary is missing and should be confirmed in review.")
-    if not experiences and not projects:
-        gaps.append("Limited concrete project/work evidence extracted from the resume.")
-
-    insight = {
-        "profile_focus": candidate.get("candidate_track", "unknown"),
-        "strengths": strengths or ["Need richer candidate evidence before final recommendation."],
-        "gaps": gaps,
-    }
-    agent_outputs = dict(state.get("agent_outputs") or {})
-    agent_outputs["candidate_analyst"] = insight
+    insight = analyze_candidate_profile_skill(candidate)
+    reasoning = enrich_findings_with_llm(
+        agent_name="candidate_analyst",
+        role="candidate_profile_review",
+        base_findings=insight,
+        context={
+            "candidate_profile": candidate,
+            "job_profile": state.get("job_profile") or {},
+        },
+    )
+    insight = reasoning.findings
+    gaps = list(insight.get("gaps") or [])
+    concerns = gaps + [concern for concern in reasoning.concerns if concern not in gaps]
+    agent_result = AgentResult(
+        agent_name="candidate_analyst",
+        role="candidate_profile_review",
+        status="success",
+        findings=insight,
+        evidence_refs=[],
+        confidence=0.8 if insight.get("strengths") else 0.45,
+        concerns=concerns,
+        token_usage=reasoning.token_usage,
+        model_name=reasoning.model_name,
+        provider=reasoning.provider,
+    )
+    agent_updates = record_agent_result(state, agent_result)
 
     return {
         "candidate_insights": insight,
-        "agent_outputs": agent_outputs,
+        **agent_updates,
         "current_step": "candidate_analyst",
         "trace": add_trace(
             state,

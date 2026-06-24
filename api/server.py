@@ -2,13 +2,17 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from core.email_sender import send_report_email
+from core.job_queue import enqueue_batch_evaluation_job
 from core.persistence import SQLiteRunStore
+from core.runtime_status import get_runtime_status
+from core.store_factory import create_run_store
 from harness.batch_runner import BatchResumeInput, run_batch_evaluation
 from harness.runner import run_evaluation
 
@@ -65,7 +69,7 @@ def create_app(
     upload_dir: str | Path = DEFAULT_UPLOAD_DIR,
     frontend_dist: str | Path = DEFAULT_FRONTEND_DIST,
 ) -> FastAPI:
-    run_store = store or SQLiteRunStore()
+    run_store = store or create_run_store()
     run_store.initialize()
     upload_root = Path(upload_dir)
     frontend_root = Path(frontend_dist)
@@ -84,6 +88,15 @@ def create_app(
     def health() -> dict[str, str]:
         run_store.initialize()
         return {"status": "ok", "storage": "sqlite"}
+
+    @app.get("/runtime")
+    def runtime() -> dict[str, object]:
+        return {
+            "status": "ok",
+            "storage": "sqlalchemy" if run_store.__class__.__name__ == "SQLAlchemyRunStore" else "sqlite",
+            "store": run_store.__class__.__name__,
+            **get_runtime_status().as_dict(),
+        }
 
     @app.post("/evaluations")
     def create_evaluation(request: EvaluationRequest) -> dict[str, Any]:
@@ -121,6 +134,49 @@ def create_app(
             run_store.save_workflow_result(workflow_result)
         run_store.save_batch_result(result)
         return result
+
+    def _run_batch_job(job_id: str, request: BatchEvaluationRequest) -> None:
+        run_store.mark_evaluation_job_running(job_id)
+        try:
+            result = run_batch_evaluation(
+                [
+                    BatchResumeInput(
+                        candidate_id=item.candidate_id,
+                        resume_text=item.resume_text,
+                        resume_file_path=item.resume_file_path,
+                    )
+                    for item in request.resumes
+                ],
+                jd_text=request.jd_text,
+                request_id=request.request_id,
+                risk_model_path=request.risk_model_path,
+                enable_llm_structured_extraction=request.enable_llm_structured_extraction,
+                enable_llm_report_enhancement=request.enable_llm_report_enhancement,
+            )
+            for workflow_result in result.get("results", []):
+                run_store.save_workflow_result(workflow_result)
+            run_store.save_batch_result(result)
+            run_store.complete_evaluation_job(job_id, result)
+        except Exception as exc:  # pragma: no cover - defensive production boundary.
+            run_store.fail_evaluation_job(job_id, str(exc))
+
+    @app.post("/batch-evaluations/jobs", status_code=status.HTTP_202_ACCEPTED)
+    def create_batch_evaluation_job(
+        request: BatchEvaluationRequest,
+        background_tasks: BackgroundTasks,
+    ) -> dict[str, Any]:
+        job_id = f"batch-{uuid4().hex}"
+        job = run_store.save_evaluation_job(
+            job_id=job_id,
+            kind="batch_evaluation",
+            request_id=request.request_id,
+            payload=request.model_dump(),
+        )
+        if enqueue_batch_evaluation_job(job_id, request.model_dump()):
+            return job
+        background_tasks.add_task(_run_batch_job, job_id, request)
+        job["queue_backend"] = "fastapi_background_tasks"
+        return job
 
     @app.post("/batch-evaluations/uploads")
     async def create_batch_evaluation_from_uploads(
@@ -168,6 +224,11 @@ def create_app(
     def list_runs(limit: int = 50, offset: int = 0, status: str | None = None) -> dict[str, Any]:
         return {"runs": run_store.list_runs(limit=limit, offset=offset, status=status)}
 
+    @app.delete("/runs")
+    def clear_runs() -> dict[str, Any]:
+        deleted_count = run_store.clear_evaluation_data()
+        return {"deleted_count": deleted_count}
+
     @app.get("/batches")
     def list_batches(limit: int = 50, offset: int = 0) -> dict[str, Any]:
         return {"batches": run_store.list_batches(limit=limit, offset=offset)}
@@ -178,6 +239,17 @@ def create_app(
         if batch is None:
             raise HTTPException(status_code=404, detail="batch not found")
         return batch
+
+    @app.get("/jobs")
+    def list_jobs(limit: int = 50, status: str | None = None) -> dict[str, Any]:
+        return {"jobs": run_store.list_evaluation_jobs(limit=limit, status=status)}
+
+    @app.get("/jobs/{job_id}")
+    def get_job(job_id: str) -> dict[str, Any]:
+        job = run_store.get_evaluation_job(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="job not found")
+        return job
 
     @app.get("/traces/{request_id}")
     def get_trace(request_id: str) -> dict[str, Any]:
@@ -247,6 +319,12 @@ def create_app(
         if saved is None:
             raise HTTPException(status_code=404, detail="run not found")
         return saved
+
+    @app.delete("/runs/{request_id}")
+    def delete_run(request_id: str) -> dict[str, Any]:
+        if not run_store.delete_run(request_id):
+            raise HTTPException(status_code=404, detail="run not found")
+        return {"request_id": request_id, "deleted": True}
 
     @app.get("/", response_class=HTMLResponse)
     def serve_frontend_index():

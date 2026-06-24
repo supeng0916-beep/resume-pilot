@@ -7,6 +7,10 @@ venv/
 env/
 
 .env
+.env.*
+!.env.example
+!.env.production.example
+.codex/
 PROJECT_PLAN.md
 DESIGN-apple.md
 DESIGN-react-control-cabin.md
@@ -38,3 +42,6 @@ data/test_outputs/
 data/control_cabin_uploads/
 data/api_uploads/
 data/*.sqlite3
+data/*.sqlite3-*
+data/tmp/
+memory/

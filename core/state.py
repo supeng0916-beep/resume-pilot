@@ -39,12 +39,16 @@ class WorkflowState(TypedDict, total=False):
     human_review_status: str | None
     persist_human_feedback: bool
     feedback_memory_path: str | None
+    use_feedback_memory: bool
     feedback_memory_record: dict[str, Any] | None
     feedback_memory_records: list[dict[str, Any]]
     feedback_memory_summaries: list[str]
     active_agents: list[str]
     supervisor_plan: dict[str, Any] | None
+    supervisor_decisions: list[dict[str, Any]]
     agent_outputs: dict[str, Any]
+    agent_metrics: dict[str, Any]
+    specialist_execution: dict[str, Any] | None
     candidate_insights: dict[str, Any] | None
     job_insights: dict[str, Any] | None
     final_recommendation: dict[str, Any] | None

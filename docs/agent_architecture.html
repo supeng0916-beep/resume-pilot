@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agentic HR Agent Architecture</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --ink: #17202a;
+      --muted: #607080;
+      --line: #b8c2cc;
+      --supervisor: #155e75;
+      --agent: #2563eb;
+      --node: #475569;
+      --data: #7c3aed;
+      --harness: #0f766e;
+      --surface: #b45309;
+      --card: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    main {
+      width: min(1480px, calc(100vw - 48px));
+      margin: 0 auto;
+      padding: 32px 0 48px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-end;
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+      max-width: 900px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+      min-width: 360px;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 9px;
+      background: #fff;
+      border: 1px solid #d9e0e7;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #334155;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .canvas {
+      position: relative;
+      min-height: 900px;
+      background:
+        linear-gradient(90deg, rgba(148, 163, 184, .18) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(148, 163, 184, .18) 1px, transparent 1px),
+        #fff;
+      background-size: 28px 28px;
+      border: 1px solid #d8dee6;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, .08);
+    }
+
+    svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .box {
+      position: absolute;
+      width: 190px;
+      min-height: 82px;
+      padding: 13px 14px;
+      background: var(--card);
+      border: 2px solid var(--node);
+      border-radius: 8px;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, .10);
+    }
+
+    .box h2 {
+      margin: 0 0 7px;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .box p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .box.surface { border-color: var(--surface); }
+    .box.supervisor { border-color: var(--supervisor); background: #ecfeff; }
+    .box.agent { border-color: var(--agent); background: #eff6ff; }
+    .box.node { border-color: var(--node); }
+    .box.data { border-color: var(--data); background: #f5f3ff; }
+    .box.harness { border-color: var(--harness); background: #ecfdf5; }
+
+    .lane {
+      position: absolute;
+      left: 28px;
+      right: 28px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 10px;
+      background: rgba(248, 250, 252, .62);
+    }
+
+    .lane-title {
+      position: absolute;
+      left: 18px;
+      top: -12px;
+      padding: 3px 10px;
+      background: #fff;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .note {
+      position: absolute;
+      right: 34px;
+      bottom: 24px;
+      width: 380px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: rgba(255, 255, 255, .92);
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .note strong {
+      color: #0f172a;
+    }
+
+    @media print {
+      main { width: 1480px; padding: 12px 0; }
+      .canvas { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <section>
+        <h1>Agentic HR：Supervisor-Centered 多 Agent 架构图</h1>
+        <p class="subtitle">
+          基于真实项目代码绘制：LangGraph 使用 WorkflowState 串联 Supervisor、Specialist Agents、
+          确定性节点、数据持久化和 Harness 评估闭环。
+        </p>
+      </section>
+      <section class="legend" aria-label="legend">
+        <span><i class="dot" style="background: var(--surface)"></i>入口/控制舱</span>
+        <span><i class="dot" style="background: var(--supervisor)"></i>Supervisor</span>
+        <span><i class="dot" style="background: var(--agent)"></i>Specialist Agent</span>
+        <span><i class="dot" style="background: var(--node)"></i>确定性节点</span>
+        <span><i class="dot" style="background: var(--data)"></i>状态/数据</span>
+        <span><i class="dot" style="background: var(--harness)"></i>Harness</span>
+      </section>
+    </header>
+
+    <section class="canvas" aria-label="Agent architecture diagram">
+      <div class="lane" style="top: 30px; height: 120px;"><span class="lane-title">产品入口</span></div>
+      <div class="lane" style="top: 180px; height: 438px;"><span class="lane-title">LangGraph Agentic Workflow</span></div>
+      <div class="lane" style="top: 646px; height: 118px;"><span class="lane-title">WorkflowState / 持久化</span></div>
+      <div class="lane" style="top: 790px; height: 82px;"><span class="lane-title">Harness 工程体系</span></div>
+
+      <svg viewBox="0 0 1480 900" preserveAspectRatio="none">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#64748b"></path>
+          </marker>
+          <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#2563eb"></path>
+          </marker>
+          <marker id="arrow-purple" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#7c3aed"></path>
+          </marker>
+        </defs>
+
+        <g stroke="#64748b" stroke-width="2.2" fill="none" marker-end="url(#arrow)">
+          <path d="M220 90 H310"></path>
+          <path d="M500 90 H590"></path>
+          <path d="M780 90 H870"></path>
+          <path d="M970 132 V205"></path>
+          <path d="M970 285 V328 H230 V365"></path>
+          <path d="M330 405 H405"></path>
+          <path d="M595 405 H670"></path>
+          <path d="M860 405 H935"></path>
+          <path d="M1125 405 H1200"></path>
+          <path d="M1300 445 V522 H230 V545"></path>
+          <path d="M330 585 H405"></path>
+          <path d="M595 585 H670"></path>
+          <path d="M860 585 H935"></path>
+          <path d="M1125 585 H1200"></path>
+          <path d="M1300 625 V690 H1145"></path>
+        </g>
+
+        <g stroke="#2563eb" stroke-width="2.2" fill="none" marker-end="url(#arrow-blue)">
+          <path d="M310 250 H235"></path>
+          <path d="M1130 250 H1198"></path>
+        </g>
+
+        <g stroke="#7c3aed" stroke-width="2" fill="none" stroke-dasharray="7 5" marker-end="url(#arrow-purple)">
+          <path d="M740 650 V618"></path>
+          <path d="M740 650 V620 H500"></path>
+          <path d="M740 650 V620 H1025"></path>
+          <path d="M1030 705 H1190"></path>
+          <path d="M500 705 H315"></path>
+          <path d="M1285 690 V646"></path>
+        </g>
+
+        <g stroke="#0f766e" stroke-width="2" fill="none" stroke-dasharray="8 5" marker-end="url(#arrow)">
+          <path d="M315 830 H455"></path>
+          <path d="M615 830 H755"></path>
+          <path d="M915 830 H1055"></path>
+        </g>
+      </svg>
+
+      <article class="box surface" style="left: 70px; top: 55px;">
+        <h2>HR / 面试官</h2>
+        <p>上传简历、输入 JD、查看候选人评估结果。</p>
+      </article>
+
+      <article class="box surface" style="left: 310px; top: 55px;">
+        <h2>React 控制舱</h2>
+        <p>批量评估、报告预览、trace 时间线、人工复核。</p>
+      </article>
+
+      <article class="box surface" style="left: 590px; top: 55px;">
+        <h2>FastAPI 服务层</h2>
+        <p>/evaluations、/runs、/traces、/reviews、/batch。</p>
+      </article>
+
+      <article class="box surface" style="left: 870px; top: 55px;">
+        <h2>Harness Runner</h2>
+        <p>run_evaluation、batch_runner，触发 LangGraph。</p>
+      </article>
+
+      <article class="box supervisor" style="left: 870px; top: 205px; width: 220px;">
+        <h2>Supervisor Agent</h2>
+        <p>任务拆解、激活子 Agent、状态路由、异常分支。</p>
+      </article>
+
+      <article class="box node" style="left: 120px; top: 365px;">
+        <h2>Document Parser</h2>
+        <p>PDF / 文本简历解析，生成 resume_text。</p>
+      </article>
+
+      <article class="box agent" style="left: 405px; top: 365px;">
+        <h2>Resume Extraction Agent</h2>
+        <p>抽取 candidate_profile，支持规则与可选 LLM。</p>
+      </article>
+
+      <article class="box agent" style="left: 670px; top: 365px;">
+        <h2>JD Extraction Agent</h2>
+        <p>抽取 job_profile 和岗位要求结构。</p>
+      </article>
+
+      <article class="box node" style="left: 935px; top: 365px;">
+        <h2>Validator</h2>
+        <p>Pydantic Schema 校验；失败时有限重试或失败报告。</p>
+      </article>
+
+      <article class="box agent" style="left: 1200px; top: 365px;">
+        <h2>Candidate Analyst</h2>
+        <p>总结候选人优势、短板、信息缺口。</p>
+      </article>
+
+      <article class="box agent" style="left: 120px; top: 545px;">
+        <h2>Job Analyst</h2>
+        <p>提炼岗位重点、评估维度和优先级。</p>
+      </article>
+
+      <article class="box agent" style="left: 405px; top: 545px;">
+        <h2>Memory Agent</h2>
+        <p>检索历史人工反馈，形成 feedback summaries。</p>
+      </article>
+
+      <article class="box node" style="left: 670px; top: 545px;">
+        <h2>Rubric Selector</h2>
+        <p>选择校招、社招、实习等评分轨道。</p>
+      </article>
+
+      <article class="box node" style="left: 935px; top: 545px;">
+        <h2>Matcher</h2>
+        <p>计算 match_score，输出匹配明细与证据引用。</p>
+      </article>
+
+      <article class="box node" style="left: 1200px; top: 545px;">
+        <h2>Risk Evaluator</h2>
+        <p>预测 needs_human_review 风险，输出 risk_score。</p>
+      </article>
+
+      <article class="box agent" style="left: 120px; top: 682px;">
+        <h2>Reporting Agent</h2>
+        <p>汇总匹配和风险，形成最终建议。</p>
+      </article>
+
+      <article class="box node" style="left: 405px; top: 682px;">
+        <h2>Report Writer</h2>
+        <p>生成 Markdown 报告，包含 Agent 协作摘要。</p>
+      </article>
+
+      <article class="box node" style="left: 670px; top: 682px;">
+        <h2>Human Review</h2>
+        <p>人工确认、修订、补充反馈并写回 memory。</p>
+      </article>
+
+      <article class="box data" style="left: 935px; top: 664px; width: 210px;">
+        <h2>WorkflowState</h2>
+        <p>candidate_profile、job_profile、agent_outputs、trace、report。</p>
+      </article>
+
+      <article class="box data" style="left: 1200px; top: 664px;">
+        <h2>SQLite</h2>
+        <p>runs、candidates、jobs、traces、reports、reviews、batches。</p>
+      </article>
+
+      <article class="box data" style="left: 405px; top: 789px;">
+        <h2>Feedback Memory</h2>
+        <p>人工复核反馈沉淀，供 Memory Agent 检索。</p>
+      </article>
+
+      <article class="box harness" style="left: 120px; top: 789px;">
+        <h2>Trace</h2>
+        <p>记录每个节点执行摘要和关键元信息。</p>
+      </article>
+
+      <article class="box harness" style="left: 615px; top: 789px;">
+        <h2>Replay</h2>
+        <p>保存输入与观测结果，用于回放和回归验证。</p>
+      </article>
+
+      <article class="box harness" style="left: 1055px; top: 789px;">
+        <h2>Evaluation</h2>
+        <p>报告质量、抽取评估、批量评估质量检查。</p>
+      </article>
+
+      <aside class="note">
+        <strong>讲解口径：</strong>这不是 Agent 自由聊天系统，而是中心调度型多 Agent workflow。
+        Supervisor 负责编排，Specialist Agents 负责语义分析与汇总，Validator、Matcher、
+        Risk Evaluator 等确定性节点负责稳定约束和可复现计算。
+      </aside>
+    </section>
+  </main>
+</body>
+</html>

@@ -132,3 +132,75 @@ def test_sqlite_run_store_persists_batch_and_filters_runs(tmp_path) -> None:
     assert batch is not None
     assert batch["ranked_candidates"][0]["candidate_id"] == "alice"
     assert batch["runs"][0]["request_id"] == "batch-001-001-alice"
+
+
+def test_sqlite_run_store_persists_agent_metrics_and_supervisor_decisions(tmp_path) -> None:
+    store = SQLiteRunStore(tmp_path / "hr_runs.db")
+    result = {
+        "request_id": "run-agents-001",
+        "current_step": "human_review",
+        "match_score": 86,
+        "risk_score": 0.2,
+        "human_review_status": "pending",
+        "trace": [],
+        "report": "# report",
+        "agent_outputs": {
+            "candidate_analyst": {
+                "status": "success",
+                "confidence": 0.8,
+                "findings": {"strengths": ["Python"]},
+            }
+        },
+        "agent_metrics": {
+            "candidate_analyst": {
+                "status": "success",
+                "confidence": 0.8,
+                "duration_ms": 12,
+                "token_usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+                "model_name": "qwen3:1.7b",
+                "provider": "ollama",
+            }
+        },
+        "supervisor_decisions": [
+            {
+                "stage": "initial_plan",
+                "active_agents": ["candidate_analyst", "job_analyst"],
+                "skipped_agents": {"memory_agent": "No feedback memory source was configured."},
+            }
+        ],
+    }
+
+    store.save_workflow_result(result)
+
+    saved = store.get_run("run-agents-001")
+    assert saved is not None
+    assert saved["agent_metrics"]["candidate_analyst"]["status"] == "success"
+    assert saved["supervisor_decisions"][0]["stage"] == "initial_plan"
+
+    agent_runs = store.get_agent_runs("run-agents-001")
+    assert agent_runs[0]["agent_name"] == "candidate_analyst"
+    assert agent_runs[0]["token_usage"]["total_tokens"] == 15
+    assert agent_runs[0]["output"]["findings"]["strengths"] == ["Python"]
+
+    decisions = store.get_supervisor_decisions("run-agents-001")
+    assert decisions[0]["stage"] == "initial_plan"
+    assert decisions[0]["skipped_agents"]["memory_agent"].startswith("No feedback memory")
+
+
+def test_sqlite_run_store_tracks_async_evaluation_jobs(tmp_path) -> None:
+    store = SQLiteRunStore(tmp_path / "hr_runs.db")
+    store.save_evaluation_job(
+        job_id="job-001",
+        kind="batch_evaluation",
+        request_id="batch-001",
+        payload={"candidate_count": 2},
+    )
+    store.mark_evaluation_job_running("job-001")
+    store.complete_evaluation_job("job-001", {"request_id": "batch-001", "candidate_count": 2})
+
+    job = store.get_evaluation_job("job-001")
+
+    assert job is not None
+    assert job["status"] == "completed"
+    assert job["payload"]["candidate_count"] == 2
+    assert job["result"]["candidate_count"] == 2

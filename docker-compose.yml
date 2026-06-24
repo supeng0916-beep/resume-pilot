@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: agentic_hr
+      POSTGRES_USER: agentic_hr
+      POSTGRES_PASSWORD: agentic_hr_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentic_hr -d agentic_hr"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    env_file:
+      - .env.production.example
+    environment:
+      HR_DATABASE_URL: postgresql+psycopg://agentic_hr:agentic_hr_password@postgres:5432/agentic_hr
+      HR_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - app_data:/app/data
+    command: ["python", "-m", "uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  worker:
+    build: .
+    env_file:
+      - .env.production.example
+    environment:
+      HR_DATABASE_URL: postgresql+psycopg://agentic_hr:agentic_hr_password@postgres:5432/agentic_hr
+      HR_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app_data:/app/data
+    command: ["python", "scripts/start_worker.py"]
+
+volumes:
+  postgres_data:
+  app_data:

@@ -113,4 +113,30 @@ describe("api client", () => {
     );
     expect(delivery.sent).toBe(true);
   });
+
+  it("deletes one run through the backend", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ request_id: "run-001", deleted: true })
+    });
+    const client = createApiClient({ baseUrl: "http://api.test", fetchImpl: fetchMock });
+
+    const result = await client.deleteRun("run-001");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://api.test/runs/run-001", { method: "DELETE" });
+    expect(result.deleted).toBe(true);
+  });
+
+  it("clears all runs through the backend", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ deleted_count: 3 })
+    });
+    const client = createApiClient({ baseUrl: "http://api.test", fetchImpl: fetchMock });
+
+    const result = await client.clearRuns();
+
+    expect(fetchMock).toHaveBeenCalledWith("http://api.test/runs", { method: "DELETE" });
+    expect(result.deleted_count).toBe(3);
+  });
 });

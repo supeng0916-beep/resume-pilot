@@ -45,7 +45,9 @@ flowchart TD
     Rubric["Rubric Selector<br/>campus / experienced / intern track"]
     Match["Matching Node<br/>skills, years, evidence, salary scoring"]
     Risk["Risk Evaluator<br/>manual-review risk estimation"]
-    ReportingAgent["Reporting Agent<br/>merge match and risk into recommendation"]
+    EvidenceAgent["Evidence Auditor Agent<br/>ground matched skills in resume evidence"]
+    CriticAgent["Critic Agent<br/>cross-agent consistency review"]
+    ConsensusAgent["Consensus Agent<br/>final arbitration and recommendation"]
     Report["Report Writer<br/>render final evaluation report"]
     Review["Human Review Node<br/>approval and feedback persistence"]
     End(["End"])
@@ -53,7 +55,7 @@ flowchart TD
     Start --> Hub
     Hub --> Parser --> Resume --> JD --> Validator --> Retry
     Retry -- retry --> Resume
-    Retry -- continue --> CandidateAgent --> JobAgent --> MemoryAgent --> Rubric --> Match --> Risk --> ReportingAgent --> Report --> Review --> End
+    Retry -- continue --> CandidateAgent --> JobAgent --> MemoryAgent --> Rubric --> Match --> Risk --> EvidenceAgent --> CriticAgent --> ConsensusAgent --> Report --> Review --> End
     Review -.feedback memory.-> Hub
 ```
 
@@ -67,7 +69,9 @@ flowchart TB
         CandidateAgent["Candidate Analyst Agent"]
         JobAgent["Job Analyst Agent"]
         MemoryAgent["Memory Agent"]
-        ReportingAgent["Reporting Agent"]
+        EvidenceAgent["Evidence Auditor Agent"]
+        CriticAgent["Critic Agent"]
+        ConsensusAgent["Consensus Agent"]
     end
 
     subgraph Nodes["Deterministic Node / Skill Layer"]
@@ -98,13 +102,15 @@ flowchart TB
     Hub --> CandidateAgent
     Hub --> JobAgent
     Hub --> MemoryAgent
-    Hub --> ReportingAgent
+    Hub --> EvidenceAgent
+    Hub --> CriticAgent
+    Hub --> ConsensusAgent
     Extract --> Validator
     Extract --> Parser
     Parser --> PDF
     Extract -.optional.-> LLMTool
-    ReportingAgent -.optional.-> LLMTool
-    ReportingAgent --> ReportWriter
+    ConsensusAgent -.optional.-> LLMTool
+    ConsensusAgent --> ReportWriter
     ReportWriter --> Email
     Nodes --> StoreTool
     Harness --> Agentic
