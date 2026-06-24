@@ -189,6 +189,8 @@ curl -X DELETE http://127.0.0.1:8000/runs/api-demo-001
 curl -X DELETE http://127.0.0.1:8000/runs
 ```
 
+批量上传时，后端会对每个上传文件计算 SHA-256。同一批次内如果出现内容完全相同的简历，重复文件不会落盘、不会进入评估、不会消耗 OCR/LLM token，接口会在响应中返回 `skipped_duplicates` 和 `skipped_duplicate_count` 供前端提示和审计。
+
 ## Harness 与验证
 
 后端测试：

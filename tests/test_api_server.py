@@ -161,6 +161,43 @@ def test_api_accepts_uploaded_resume_text_files_for_batch(tmp_path) -> None:
     assert len(batch_detail.json()["runs"]) == 2
 
 
+def test_api_deduplicates_uploaded_resumes_by_sha256_within_batch(tmp_path) -> None:
+    store = SQLiteRunStore(tmp_path / "runs.db")
+    upload_dir = tmp_path / "uploads"
+    app = create_app(store=store, upload_dir=upload_dir)
+    client = TestClient(app)
+
+    duplicate_content = b"Alice. Python FastAPI Redis project."
+    response = client.post(
+        "/batch-evaluations/uploads",
+        data={
+            "request_id": "upload-dedupe-001",
+            "jd_text": "Backend engineer requires Python and FastAPI.",
+            "risk_model_path": "models/review_risk_model.json",
+        },
+        files=[
+            ("files", ("alice-a.txt", duplicate_content, "text/plain")),
+            ("files", ("alice-b.txt", duplicate_content, "text/plain")),
+            ("files", ("bob.txt", b"Bob. Python SQL data pipeline.", "text/plain")),
+        ],
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["candidate_count"] == 2
+    assert len(payload["results"]) == 2
+    assert payload["skipped_duplicate_count"] == 1
+    assert payload["skipped_duplicates"] == [
+        {
+            "filename": "alice-b.txt",
+            "duplicate_of": "alice-a.txt",
+            "sha256": payload["uploaded_files"][0]["sha256"],
+        }
+    ]
+    assert [item["filename"] for item in payload["uploaded_files"]] == ["alice-a.txt", "bob.txt"]
+    assert len(list((upload_dir / "upload-dedupe-001").iterdir())) == 2
+
+
 def test_api_filters_and_pages_runs(tmp_path) -> None:
     store = SQLiteRunStore(tmp_path / "runs.db")
     for index, status in enumerate(["pending", "reviewed_approve", "pending"], start=1):

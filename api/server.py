@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -190,12 +191,34 @@ def create_app(
         run_dir = upload_root / request_id
         run_dir.mkdir(parents=True, exist_ok=True)
         resumes: list[BatchResumeInput] = []
+        seen_upload_hashes: dict[str, str] = {}
+        uploaded_files: list[dict[str, str]] = []
+        skipped_duplicates: list[dict[str, str]] = []
 
         for index, upload in enumerate(files, start=1):
             filename = _safe_upload_filename(upload.filename or f"resume-{index}.txt")
             content = await upload.read()
+            content_hash = hashlib.sha256(content).hexdigest()
+            if content_hash in seen_upload_hashes:
+                skipped_duplicates.append(
+                    {
+                        "filename": filename,
+                        "duplicate_of": seen_upload_hashes[content_hash],
+                        "sha256": content_hash,
+                    }
+                )
+                continue
+
             path = run_dir / f"{index:03d}_{filename}"
             path.write_bytes(content)
+            seen_upload_hashes[content_hash] = filename
+            uploaded_files.append(
+                {
+                    "filename": filename,
+                    "stored_path": str(path),
+                    "sha256": content_hash,
+                }
+            )
             candidate_id = Path(filename).stem or f"candidate-{index:03d}"
             if path.suffix.lower() in {".txt", ".md"}:
                 resumes.append(
@@ -218,6 +241,9 @@ def create_app(
         for workflow_result in result.get("results", []):
             run_store.save_workflow_result(workflow_result)
         run_store.save_batch_result(result)
+        result["uploaded_files"] = uploaded_files
+        result["skipped_duplicates"] = skipped_duplicates
+        result["skipped_duplicate_count"] = len(skipped_duplicates)
         return result
 
     @app.get("/runs")
