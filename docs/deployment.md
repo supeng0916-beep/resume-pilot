@@ -27,8 +27,23 @@ docker compose up --build
 Open:
 
 ```text
-http://localhost:8000
-http://localhost:8000/runtime
+http://localhost:8010
+http://localhost:8010/runtime
+```
+
+The Compose file publishes container ports to host ports that avoid common local conflicts:
+
+```text
+API:        host 8010 -> container 8000
+PostgreSQL: host 55432 -> container 5432
+Redis:      host 56379 -> container 6379
+```
+
+If Docker Desktop fails during `up --build` with `x-docker-expose-session-sharedkey contains value with non-printable ASCII characters`, build the image directly and then start Compose without rebuilding:
+
+```powershell
+docker build -t agentichr-hub-and-spoke-api:latest -t agentichr-hub-and-spoke-worker:latest .
+docker compose up -d --no-build
 ```
 
 ## Database Selection
@@ -67,7 +82,7 @@ Redis is not the source of truth. PostgreSQL stores trusted job status and evalu
 Inside Docker Compose, the worker runs:
 
 ```text
-python scripts/start_worker.py
+python -m scripts.start_worker
 ```
 
 For local development with a running Redis:

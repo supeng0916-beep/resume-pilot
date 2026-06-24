@@ -8,7 +8,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "55432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U agentic_hr -d agentic_hr"]
       interval: 10s
@@ -18,7 +18,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "56379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -38,7 +38,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "8010:8000"
     volumes:
       - app_data:/app/data
     command: ["python", "-m", "uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000"]
@@ -57,7 +57,7 @@ services:
         condition: service_healthy
     volumes:
       - app_data:/app/data
-    command: ["python", "scripts/start_worker.py"]
+    command: ["python", "-m", "scripts.start_worker"]
 
 volumes:
   postgres_data:

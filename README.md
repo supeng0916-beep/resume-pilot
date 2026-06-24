@@ -116,6 +116,14 @@ API 文档：
 http://127.0.0.1:8000/docs
 ```
 
+Docker Compose 部署默认使用避开常见本机冲突的宿主机端口：
+
+```text
+API:        http://127.0.0.1:8010
+PostgreSQL: localhost:55432 -> container:5432
+Redis:      localhost:56379 -> container:6379
+```
+
 ## 配置
 
 ### PostgreSQL
@@ -257,6 +265,13 @@ Docker Compose 包含 FastAPI、PostgreSQL、Redis 和 RQ worker：
 
 ```powershell
 docker compose --env-file .env.production.example up --build
+```
+
+如果 Docker Desktop 在 `up --build` 时出现 `x-docker-expose-session-sharedkey contains value with non-printable ASCII characters`，可以先手动构建镜像，再跳过 compose build 启动：
+
+```powershell
+docker build -t agentichr-hub-and-spoke-api:latest -t agentichr-hub-and-spoke-worker:latest .
+docker compose up -d --no-build
 ```
 
 如果 Docker 内服务需要访问宿主机 Ollama：
