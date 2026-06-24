@@ -1,36 +1,22 @@
 # Resume Pilot
 
-Resume Pilot 是一个基于 LangGraph 的 Supervisor-centered 多 Agent 招聘评估系统。它把简历解析、岗位理解、证据化评分、风险复核、报告生成和人工复核串成一条可追踪、可回放、可持续验证的招聘评估流程。
+Resume Pilot is a Supervisor-centered multi-agent recruiting evaluation system built with LangGraph, FastAPI, PostgreSQL, Redis/RQ, and React.
 
-项目定位不是替代 HR 做最终录用决策，而是构建一个可治理的招聘评估控制舱：每个评分要有证据，每个专家 Agent 要留下结构化输出和 trace，高风险结果要进入人工复核。
+It is designed to support structured resume screening workflows, not to make automated hiring decisions. The system focuses on evidence-grounded evaluation, traceable agent outputs, batch processing, human review, and repeatable regression testing.
 
-## 核心能力
+## Features
 
-- **中心化 Supervisor + LangGraph**：Supervisor 负责任务拆解、状态路由和复核路由，保留 Hub-and-Spoke 架构。
-- **动态路由**：Schema 校验失败、证据缺口、Critic 冲突、风险复核结果都会影响后续节点，而不是固定串行 demo。
-- **专家 Agent 分工**：Candidate Analyst、Job Analyst、Memory、Evidence Auditor、Critic、Consensus、Reporting 等 Agent 输出有边界、有契约、可审计。
-- **本地大模型接入**：通过统一 model gateway 支持 OpenAI-compatible API 和 Ollama，本地默认推荐 `qwen3:1.7b`。
-- **文档解析链路**：文本型 PDF 使用 PyMuPDF；图片型 PDF 可按配置走 OCR 或 Vision LLM fallback。
-- **生产化数据层**：FastAPI 后端接入 SQLAlchemy 数据层，生产部署以 PostgreSQL 为主库；Redis/RQ 承担异步任务队列和运行状态支撑，SQLite 仅作为本地免配置 fallback。
-- **Harness 工程体系**：包含 batch runner、trace/replay、报告质量评估、LLM 抽取评估、benchmark 和回归测试。
-- **React Web 控制舱**：支持批量评估、候选人记录、复核队列、运行详情、报告预览和记录删除。
+- **Supervisor-centered LangGraph workflow**: a central Supervisor routes state across deterministic nodes and specialist agents.
+- **Specialist agents**: Candidate Analyst, Job Analyst, Memory Agent, Evidence Auditor, Critic Agent, Consensus Agent, and Reporting Agent.
+- **Evidence-based evaluation**: scoring is tied to extracted skills, job requirements, document quality, and review risk.
+- **Production-oriented data layer**: PostgreSQL via SQLAlchemy for deployment, Redis/RQ for asynchronous jobs, and SQLite only as a local fallback.
+- **Local model support**: OpenAI-compatible providers and Ollama are supported through a shared model gateway.
+- **Document processing**: PyMuPDF for text PDFs, optional OCR for scanned PDFs, and optional LLM-assisted extraction.
+- **Batch upload deduplication**: uploaded resumes are hashed with SHA-256; duplicate files in the same batch are skipped before parsing and evaluation.
+- **Harness and regression testing**: batch runner, replay, benchmark, LLM extraction evaluation, report quality checks, and automated tests.
+- **React operations console**: batch evaluation, candidate run history, review queue, run detail, report preview, and record deletion.
 
-## 项目结构
-
-```text
-api/          FastAPI 服务和 REST API
-core/         Schema、解析、LLM gateway、持久化、风险模型和 Agent 契约
-graph/        LangGraph 工作流和 Supervisor 路由
-nodes/        工作流节点、专家 Agent 和规则节点
-harness/      批量运行、trace/replay、benchmark 和评估工具
-frontend/     React + Vite 控制舱
-scripts/      启动、benchmark、LLM eval、模型训练脚本
-tests/        后端回归测试
-docs/         架构、部署、生产化和评估文档
-workers/      Redis/RQ 异步任务 worker
-```
-
-## 工作流
+## Architecture
 
 ```text
 Supervisor
@@ -53,19 +39,22 @@ Supervisor
   -> Human Review
 ```
 
-关键实现位置：
+Key modules:
 
-- `graph/workflow.py`：LangGraph 节点编排。
-- `graph/routing.py`：Supervisor-centered 动态路由。
-- `nodes/parallel_specialists.py`：候选人、岗位、历史记忆三个专家并行执行。
-- `core/agent_contracts.py`：Agent 输出契约和 token usage 记录。
-- `core/model_gateway.py`：Ollama / OpenAI-compatible 模型网关。
-- `core/sqlalchemy_store.py`：生产主数据层，使用 SQLAlchemy 对接 PostgreSQL。
-- `core/persistence.py`：本地开发 fallback，未配置数据库时使用 SQLite。
-- `harness/`：持续验证、回放、评估和 benchmark。
-- `frontend/src/`：Web 控制舱。
+```text
+api/          FastAPI service and REST endpoints
+core/         schemas, parsing, model gateway, stores, risk model, agent contracts
+graph/        LangGraph workflow and routing
+nodes/        workflow nodes and specialist agents
+harness/      batch runner, replay, benchmark, and evaluation utilities
+frontend/     React + Vite web console
+scripts/      startup, benchmark, LLM evaluation, and training scripts
+tests/        backend regression tests
+docs/         architecture, deployment, and production-readiness notes
+workers/      Redis/RQ worker entry points
+```
 
-更多说明：
+Further reading:
 
 - `docs/multi_agent_architecture.md`
 - `docs/architecture_diagrams.md`
@@ -73,21 +62,29 @@ Supervisor
 - `docs/deployment.md`
 - `docs/benchmark_usage.md`
 
-## 快速启动
+## Requirements
 
-### 1. 安装后端依赖
+- Python 3.11+
+- Node.js 20+
+- PostgreSQL and Redis for deployment
+- Optional: Ollama for local LLM inference
+- Optional: OCR dependencies for scanned PDF parsing
+
+## Quick Start
+
+Install backend dependencies:
 
 ```powershell
 python -m pip install -r requirements.txt
 ```
 
-如需启用本地 OCR fallback：
+Install optional OCR dependencies:
 
 ```powershell
 python -m pip install -r requirements-ocr.txt
 ```
 
-### 2. 安装前端依赖
+Install frontend dependencies:
 
 ```powershell
 cd frontend
@@ -95,13 +92,45 @@ npm install
 cd ..
 ```
 
-### 3. 配置环境变量
+Create a local environment file:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-本地 Ollama + Qwen 示例：
+Start the backend and frontend in development mode:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start_control_cabin.ps1
+```
+
+Open the web console:
+
+```text
+http://127.0.0.1:5173
+```
+
+FastAPI docs:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+## Configuration
+
+### PostgreSQL
+
+Production deployments should set `HR_DATABASE_URL`:
+
+```text
+HR_DATABASE_URL=postgresql+psycopg://agentic_hr:agentic_hr_password@localhost:5432/agentic_hr
+```
+
+If `HR_DATABASE_URL` is not set, the application falls back to local SQLite for single-user development.
+
+### Ollama
+
+Example local Ollama configuration:
 
 ```text
 HR_LLM_ENABLED=true
@@ -114,59 +143,45 @@ HR_LLM_STRUCTURED_EXTRACTION_ENABLED=false
 HR_AGENT_LLM_ENABLED=true
 ```
 
-生产部署建议配置 PostgreSQL；只有在本地开发未配置 `HR_DATABASE_URL` 时，系统才 fallback 到 SQLite：
+### Redis/RQ
+
+Set `HR_REDIS_URL` to enable Redis-backed queueing:
 
 ```text
-HR_DATABASE_URL=postgresql+psycopg://agentic_hr:agentic_hr_password@localhost:5432/agentic_hr
+HR_REDIS_URL=redis://localhost:6379/0
 ```
 
-### 4. 启动控制舱
+Without Redis, local development falls back to FastAPI background tasks.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\start_control_cabin.ps1
-```
+## CLI Usage
 
-打开前端：
-
-```text
-http://127.0.0.1:5173
-```
-
-API 文档：
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-## CLI 使用
-
-运行内置样例：
+Run the built-in sample:
 
 ```powershell
 python main.py
 ```
 
-评估本地 PDF 简历：
+Evaluate one local PDF:
 
 ```powershell
 python main.py --resume C:\path\to\candidate.pdf --jd "Backend engineer with Python, FastAPI, PostgreSQL and Redis experience."
 ```
 
-批量评估多个本地 PDF：
+Evaluate multiple local PDFs:
 
 ```powershell
 python main.py --resume C:\path\to\candidate-a.pdf --resume C:\path\to\candidate-b.pdf --jd "AI engineer with Python and ML project experience."
 ```
 
-关闭 LLM 报告增强，便于确定性批量回归：
+Disable LLM report enhancement for deterministic regression runs:
 
 ```powershell
 python main.py --resume C:\path\to\candidate.pdf --jd "AI engineer with Python and ML project experience." --disable-llm-report-enhancement
 ```
 
-## API 示例
+## API Examples
 
-运行一次文本评估：
+Run a text-based evaluation:
 
 ```powershell
 curl -X POST http://127.0.0.1:8000/evaluations `
@@ -174,7 +189,7 @@ curl -X POST http://127.0.0.1:8000/evaluations `
   -d "{\"request_id\":\"api-demo-001\",\"resume_text\":\"Candidate Alice. Python FastAPI Redis project.\",\"jd_text\":\"Backend engineer requires Python, FastAPI and Redis.\",\"risk_model_path\":\"models/review_risk_model.json\"}"
 ```
 
-查询结果：
+Query results:
 
 ```powershell
 curl http://127.0.0.1:8000/runs/api-demo-001
@@ -182,24 +197,41 @@ curl "http://127.0.0.1:8000/runs?status=pending&limit=20&offset=0"
 curl "http://127.0.0.1:8000/batches?limit=20&offset=0"
 ```
 
-删除本地评估记录：
+Delete evaluation records:
 
 ```powershell
 curl -X DELETE http://127.0.0.1:8000/runs/api-demo-001
 curl -X DELETE http://127.0.0.1:8000/runs
 ```
 
-批量上传时，后端会对每个上传文件计算 SHA-256。同一批次内如果出现内容完全相同的简历，重复文件不会落盘、不会进入评估、不会消耗 OCR/LLM token，接口会在响应中返回 `skipped_duplicates` 和 `skipped_duplicate_count` 供前端提示和审计。
+## Batch Upload Deduplication
 
-## Harness 与验证
+For `/batch-evaluations/uploads`, the backend computes a SHA-256 hash for each uploaded file. If two files in the same batch have identical content, only the first file is saved and evaluated. Duplicates are returned in the response:
 
-后端测试：
+```json
+{
+  "skipped_duplicate_count": 1,
+  "skipped_duplicates": [
+    {
+      "filename": "alice-copy.pdf",
+      "duplicate_of": "alice.pdf",
+      "sha256": "..."
+    }
+  ]
+}
+```
+
+This prevents duplicated parsing work and avoids unnecessary OCR/LLM token usage within a batch.
+
+## Testing
+
+Run backend tests:
 
 ```powershell
 python -m pytest -q
 ```
 
-前端测试和构建：
+Run frontend tests and build:
 
 ```powershell
 cd frontend
@@ -207,46 +239,50 @@ npm test -- --run
 npm run build
 ```
 
-Benchmark：
+Run benchmark smoke checks:
 
 ```powershell
 python scripts\run_benchmark.py --count 5 --output data\test_outputs\benchmark_smoke.json
 ```
 
-LLM 抽取评估：
+Run LLM extraction evaluation:
 
 ```powershell
 python scripts\run_llm_eval.py --cases data\datasets\extraction_eval_cases.jsonl --output data\test_outputs\llm_extraction_eval_report.md
 ```
 
-## Docker 部署
+## Docker Deployment
 
-Compose 栈包含 FastAPI、PostgreSQL、Redis 和 RQ worker：
+The Docker Compose stack includes FastAPI, PostgreSQL, Redis, and an RQ worker:
 
 ```powershell
 docker compose --env-file .env.production.example up --build
 ```
 
-如果 Docker 内服务需要访问宿主机 Ollama：
+When services inside Docker need to call Ollama on the host machine, use:
 
 ```text
 HR_LLM_BASE_URL=http://host.docker.internal:11434/v1
 ```
 
-## 仓库与运行数据策略
+## Repository Hygiene
 
-当前后端仍然是 FastAPI，生产数据层已经按 PostgreSQL + Redis/RQ 方向整理。下面这些内容“不提交到 GitHub”说的是仓库卫生和隐私边界，不代表系统仍以它们作为生产架构：
+The following files are intentionally excluded from version control:
 
-- `.env` 和本地密钥
-- 本地 fallback SQLite 数据库
-- 上传过的简历和 PDF
-- OCR / 模型缓存
-- 生成的报告、回放文件和测试输出
-- `node_modules` 和前端构建产物
-- Python cache 目录
+- `.env` and local secrets
+- local SQLite fallback databases
+- uploaded resumes and PDFs
+- OCR/model caches
+- generated reports, replay cases, and test outputs
+- `node_modules` and frontend build output
+- Python cache directories
 
-`data/datasets/` 下保留的是合成或脱敏样例数据，用于测试和 harness 示例。
+Tracked files under `data/datasets/` are synthetic or redacted examples used for tests and harness workflows.
+
+## Privacy And Safety
+
+Resume Pilot should be used as a decision-support and review-assistance tool. It should not be presented as an automated hiring decision system. Real resumes should be redacted or handled under appropriate privacy controls before being used for evaluation, testing, or demonstration.
 
 ## License
 
-当前尚未选择开源许可证。正式公开使用前建议补充 `LICENSE` 文件。
+No open-source license has been selected yet. Add a `LICENSE` file before distributing this project as open-source software.
